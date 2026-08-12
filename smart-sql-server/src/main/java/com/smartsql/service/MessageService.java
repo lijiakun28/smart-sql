@@ -1,0 +1,50 @@
+package com.smartsql.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.smartsql.entity.Message;
+import com.smartsql.mapper.MessageMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * 消息管理 Service
+ */
+@Service
+public class MessageService {
+
+    @Autowired
+    private MessageMapper messageMapper;
+
+    /** 查询会话的所有消息 */
+    public List<Message> listBySession(Long sessionId) {
+        LambdaQueryWrapper<Message> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Message::getSessionId, sessionId)
+               .orderByAsc(Message::getCreateTime);
+        return messageMapper.selectList(wrapper);
+    }
+
+    /** 保存消息 */
+    public Message save(Message message) {
+        messageMapper.insert(message);
+        return message;
+    }
+
+    /** 更新消息内容（如追加流式响应） */
+    public boolean updateContent(Long id, String content, String thinkingProcess) {
+        Message message = new Message();
+        message.setId(id);
+        message.setContent(content);
+        message.setThinkingProcess(thinkingProcess);
+        return messageMapper.updateById(message) > 0;
+    }
+
+    /** 更新反馈 */
+    public boolean updateFeedback(Long id, String feedback) {
+        Message message = new Message();
+        message.setId(id);
+        message.setFeedback(feedback);
+        return messageMapper.updateById(message) > 0;
+    }
+}
