@@ -15,7 +15,7 @@ USE smart_sql;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS session (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
-    session_name VARCHAR(200)  NOT NULL DEFAULT '新会话',
+    session_name VARCHAR(200)  NOT NULL DEFAULT 'New Session',
     user_id      VARCHAR(64)   NOT NULL DEFAULT 'default' COMMENT '预留多用户扩展',
     status       TINYINT       NOT NULL DEFAULT 1 COMMENT '1=活跃 0=已删除',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
