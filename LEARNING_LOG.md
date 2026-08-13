@@ -131,6 +131,52 @@
 
 ---
 
+## Day 3+4 综合作业（7 题，总分 88）
+
+### 题 1：向量相似度为什么代表语义相关？— 90 分
+**代码来源**：`smart-sql-ai/app/rag/vector_store.py`（search 方法，cosine 空间）、`app/rag/embedding.py`（MiniLM 模型）
+**我的回答**：自监督学习捕捉语义模式，编码为高维空间点；语义等价 → 向量表征一致性；"语义内核"被编码为相似向量组合。
+**点评**：表述精准。补充三个机制：① 分布假说（MLM 猜词任务使模型被迫理解上下文）② sentence-transformers 对比学习微调（专门优化句向量）③ 余弦距离看方向=语义（normalize 后等于内积）。
+
+### 题 2：新增知识能立即被 AI 用上吗？— 78 分
+**代码来源**：`smart-sql-ai/scripts/sync_knowledge.py`、`app/main.py`（/ai/knowledge/sync 端点，无人调用）
+**我的回答**：不能，缺实时同步机制；改进=实时索引更新 + 检索服务热更新 + 缓存失效。
+**点评**：方向全对，但漏了项目细节——`/ai/knowledge/sync` 端点早已写好却无人调用；正确方案是 Java CRUD 后自动调它。另"重建索引"措辞不准（upsert 是增量）；缓存建议超前（YAGNI）。
+
+### 题 3：sync_knowledge.py 代码 review — 92 分
+**代码来源**：`smart-sql-ai/scripts/sync_knowledge.py`（MYSQL_PASSWORD 硬编码默认值；无 try/except；全量读取）
+**我的回答**：安全=硬编码密码进 GitHub 泄漏凭据；修法=强制环境变量 + .gitignore。健壮=无异常处理/重试，全量读取 OOM；修法=不知道。
+**点评**：安全 100 分（"默认值=泄漏"意识强，且 .gitignore 被默认密码绕过这个细节值得展开）。修法教学：try/except + 退出码、keyset 分页、upsert 幂等。
+**已修复** ✅：密码改为强制环境变量；主流程 try/except + 退出码；批量方案注释预留。
+
+### 题 4：逻辑删除 vs 物理删除 — 85 分
+**代码来源**：`smart-sql-server/src/main/java/com/smartsql/service/SessionService.java`（delete 方法）
+**我的回答**：逻辑删=审计/追溯/可恢复；物理删=敏感数据/临时数据/超大日志；会话表用逻辑删除因"强制下线"需求。
+**点评**：通用场景满分。"强制下线"是通用场景但未扣住需求文档：我们项目的原因是①历史会话是产品功能（保留7天）②行为分析日志保留3个月 ③message 子表关联完整性。
+
+### 题 5：@RequestParam vs @RequestBody — 88 分
+**代码来源**：`ChatController.java`（chat 方法 @RequestBody Map）、`SessionController.java`（@RequestParam）
+**我的回答**：前者 URL/表单键值对、简单参数；后者请求体 JSON 反序列化、复杂结构。场景：分页参数用前者；高级查询/多轮上下文/模型配置用后者。
+**点评**：场景全部正确，多轮对话例子已预演 Day 12。补充：GET 无 body、URL 长度限制（我们的问题输入限 99999 字符，必须 body）、URL 参数进 access log 的安全差异。
+
+### 题 6：ChatService 效率问题 + 业务 bug — 100 分 ⭐
+**代码来源**：`smart-sql-server/src/main/java/com/smartsql/service/ChatService.java`（updateSessionNameIfFirstMessage 方法）
+**我的回答**：效率=`sessionService.list()` 全表拉取 + Stream 内存过滤；bug=以名称等于"新会话"判断首条消息，用户手动改回会被覆盖。
+**点评**：双命中满分。核心思想："判断状态要用状态本身的证据（消息数），不要用可修改的表面属性（名称）"。
+**已修复** ✅：SessionService 新增 getById 主键查询 + MessageService 新增 countBySession，以 msgCount==1 判断。
+
+### 题 7：ChatController SSE 落库 bug — 95 分
+**代码来源**：`smart-sql-server/src/main/java/com/smartsql/controller/ChatController.java`（chat 方法 fullContent.append）
+**我的回答**：chunk 是原始 SSE JSON 而非纯文本，入库的是 JSON 拼接串（非合法 JSON 也非纯文本），导致存储混乱/功能失效/数据膨胀；修法=只提取 content 字段，具体代码不会写。
+**点评**：三层问题全看穿。教学：Jackson readTree + JsonNode.path()（防御性）+ 解析失败 log 不中断。
+**已修复** ✅：ObjectMapper 解析提取 content/thinking 纯文本落库。
+
+### 作业总评
+**优势**：代码 review 能力突出（题 3/6/7 平均 96 分）——这是工程师最值钱的能力。
+**短板**：通用知识与"我们的项目"结合不够（题 2/4 扣分点都在这），多问"为什么我们这么设计"。
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）
@@ -141,6 +187,7 @@
 - [x] 负责 DeepSeek API 的申请与配置
 - [x] 设计并优化 NL→SQL 的 Prompt 模板（5 条改进意见全部落地：安全约束/防幻觉/冲突处理/注释规范/性能要求）
 - [x] 参与 RAG 检索效果测试并见证调优（标题加权、知识注入格式）
+- [x] 代码 review 发现 3 个真实 bug 并完成修复（凭据硬编码、会话名误覆盖、SSE JSON 落库）
 - [ ] 端到端系统测试（Day 9）
 - [ ] 项目 README 撰写（Day 14）
 

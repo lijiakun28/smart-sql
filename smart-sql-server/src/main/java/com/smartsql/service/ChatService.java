@@ -1,7 +1,6 @@
 package com.smartsql.service;
 
 import com.smartsql.entity.Message;
-import com.smartsql.entity.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -44,7 +43,11 @@ public class ChatService {
         userMsg.setContextJson(context != null ? context.toString() : null);
         messageService.save(userMsg);
 
-        // 2. 更新会话时间（通过保存一条消息，MyBatis-Plus 自动更新 update_time）
+        // 2. 首条消息自动命名
+        //    必须在保存用户消息之后调用：count==1 的判断依赖消息已入库
+        //    （验证测试发现的顺序 bug：原 Controller 在保存前调用，count 恒为 0）
+        updateSessionNameIfFirstMessage(sessionId, question);
+
         // 3. 调用 AI 引擎，返回流
         return aiProxyService.chatStream(question, commandType, context);
     }
@@ -66,12 +69,15 @@ public class ChatService {
 
     /**
      * 更新会话名称（取第一条用户消息前100字）
+     *
+     * 修复题6（作业发现的两个问题）：
+     * 1. 效率：原实现 sessionService.list() 全表拉取后内存过滤 → 改为主键查询
+     * 2. bug：原以"名称等于默认值"判断首条消息，用户手动改回"新会话"会被误覆盖
+     *    → 改为以消息数判断（刚保存第一条用户消息后 count==1）
      */
     public void updateSessionNameIfFirstMessage(Long sessionId, String question) {
-        Session session = sessionService.list().stream()
-                .filter(s -> s.getId().equals(sessionId))
-                .findFirst().orElse(null);
-        if (session != null && "新会话".equals(session.getSessionName())) {
+        long messageCount = messageService.countBySession(sessionId);
+        if (messageCount == 1) {
             String name = question.length() > 100 ? question.substring(0, 100) : question;
             sessionService.rename(sessionId, name);
         }

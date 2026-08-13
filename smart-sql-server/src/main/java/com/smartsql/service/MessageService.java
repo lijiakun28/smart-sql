@@ -47,4 +47,11 @@ public class MessageService {
         message.setFeedback(feedback);
         return messageMapper.updateById(message) > 0;
     }
+
+    /** 统计会话消息数（修复题6：以消息数判断是否首条消息，而非会话名） */
+    public long countBySession(Long sessionId) {
+        LambdaQueryWrapper<Message> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Message::getSessionId, sessionId);
+        return messageMapper.selectCount(wrapper);
+    }
 }

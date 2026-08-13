@@ -27,6 +27,11 @@ public class SessionService {
         return session;
     }
 
+    /** 按主键查询单个会话（修复题6：避免 list() 全表拉取后内存过滤） */
+    public Session getById(Long id) {
+        return sessionMapper.selectById(id);
+    }
+
     /** 会话列表（按更新时间倒序） */
     public List<Session> list() {
         LambdaQueryWrapper<Session> wrapper = new LambdaQueryWrapper<>();
