@@ -69,10 +69,21 @@ def build_sql_generation_chain(knowledge_texts: list = None):
     """
     # 构建知识库上下文
     if knowledge_texts:
-        knowledge_context = "\n".join([
-            f"- **{k.get('name', '未知')}**：{k.get('description', k.get('content', ''))[:200]}"
-            for k in knowledge_texts
-        ])
+        context_parts = []
+        for k in knowledge_texts:
+            name = k.get("name", "未知")
+            category = k.get("category", "")
+            description = k.get("description", "")
+            content = k.get("content", "")
+
+            if category == "caliber" and content:
+                # 口径条目：展示完整文档（含 SQL 逻辑）
+                context_parts.append(f"【计算口径】{name}\n{content}")
+            else:
+                # 术语条目：名称 + 描述
+                context_parts.append(f"【业务术语】{name}：{description}")
+
+        knowledge_context = "\n\n".join(context_parts)
     else:
         knowledge_context = "（无匹配的知识库条目，请根据通用 SQL 知识回答）"
 
