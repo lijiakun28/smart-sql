@@ -187,16 +187,17 @@ public class KnowledgeService {
         syncToAi(item, action, "口径[" + caliber.getId() + "]");
     }
 
-    /** 调用 Python AI 引擎同步接口，失败仅告警不抛出 */
+    /** 调用 Python AI 引擎同步接口（异步提交，失败仅告警不抛出） */
     private void syncToAi(Map<String, Object> item, String action, String label) {
         try {
             Map<String, Object> request = new LinkedHashMap<>();
             request.put("items", Collections.singletonList(item));
             request.put("action", action);
+            // @Async 异步执行，此处仅提交任务；实际失败由 Spring 异步异常处理器记录日志
             aiProxyService.syncKnowledge(request);
-            log.info("知识库同步 AI 引擎: {} {} 成功", action, label);
+            log.info("知识库同步 AI 引擎任务已提交: {} {}", action, label);
         } catch (Exception e) {
-            log.warn("知识库同步 AI 引擎失败(不影响主流程,可手动跑 sync_knowledge.py 兜底): {} {} - {}",
+            log.warn("知识库同步 AI 引擎任务提交失败(不影响主流程,可手动跑 sync_knowledge.py 兜底): {} {} - {}",
                     action, label, e.getMessage());
         }
     }
