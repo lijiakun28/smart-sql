@@ -123,6 +123,44 @@
 
 ---
 
+## Day 4（Java 中间层编译启动 + 会话 API）
+
+### 坑 17：JDK 25 下 Lombok 注解不生效（连环坑）
+- **现象**：`mvn compile` 报"找不到符号 getBusinessDesc()/getTermName()..."——Lombok 的 getter 全部缺失
+- **排查过程**（升级了三次才解决）：
+  1. Spring Boot 3.3.5 自带 Lombok 1.18.34 不支持 JDK 25 → 显式升级 1.18.38，**仍然失败**
+  2. 继续升级 1.18.46（Maven Central 最新），**仍然失败**
+  3. 检查依赖树确认 1.18.46 已在 classpath → 才意识到是**注解处理根本没运行**
+- **根因**：JDK 23+ 默认禁用隐式注解处理（JEP），javac 不再自动运行 classpath 上的注解处理器
+- **解决**：maven-compiler-plugin 显式声明 `<annotationProcessorPaths>` 指向 Lombok
+- **教训**：JDK 大版本升级有三个坑位：① 库版本兼容 ② 构建工具插件兼容 ③ **语言/工具链行为变更**。第三类最难查，因为报错信息往往误导（"找不到符号"像是依赖问题，实际是注解处理被禁用）
+
+### 坑 18：Spring Boot 3.3.5 的 Maven 插件不认识 JDK 25
+- **现象**：编译通过但 `mvn spring-boot:run` 报 `Unsupported class file major version 69`（69 = JDK 25）
+- **原因**：spring-boot-maven-plugin 3.3.5 太旧，无法解析 JDK 25 的 class 文件
+- **解决**：Spring Boot 整体升级到 3.5.16
+- **教训**：编译通过 ≠ 运行通过。构建插件自己也需要支持目标 JDK
+
+### 坑 19：JDBC URL 字符集名错误
+- **现象**：所有接口返回 500，日志显示 `Caused by: java.io.UnsupportedEncodingException: utf8mb4`
+- **原因**：`characterEncoding=utf8mb4` 是 **MySQL 的字符集名**，而 Connector/J 需要 **Java 的字符集名**（`UTF-8`）
+- **解决**：改为 `characterEncoding=UTF-8`（Connector/J 会自动映射到 utf8mb4 连接字符集）
+- **教训**：JDBC URL 参数是给"Java 驱动"用的，不是给 MySQL 服务器用的；MySQL 官方文档里 utf8mb4 与 UTF-8 的映射关系要搞清楚
+
+### 坑 20：TaskStop 杀不死 Spring Boot 子进程
+- **现象**：停止后台任务后重启报端口 8080 被占用，`netstat` 显示旧 PID 仍 LISTENING
+- **原因**：后台 bash 任务被终止，但它 fork 出的 Java 子进程（PID 37456）存活
+- **解决**：`netstat -ano | grep 8080` 找到 PID → `taskkill //F //PID <pid>`
+- **教训**：Windows 下 mvn spring-boot:run 的进程树不会随父 shell 终止；改端口/重启前先查 `netstat -ano`
+
+### 坑 21：中文查询参数未 URL 编码
+- **现象**：`urllib.request` 报 `UnicodeEncodeError: 'ascii' codec can't encode`
+- **原因**：HTTP 请求行只能是 ASCII，中文参数必须先百分号编码
+- **解决**：`urllib.parse.quote(str(v))` 对每个参数值编码
+- **教训**：手写 HTTP 测试客户端时，URL 编码/解码是必修课（浏览器和 axios 会自动处理，urllib 不会）
+
+---
+
 ## 通用经验总结
 
 | 类别 | 经验 |
