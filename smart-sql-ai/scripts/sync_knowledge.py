@@ -19,19 +19,35 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 import pymysql
+from dotenv import load_dotenv
 from app.config import settings
 from app.rag.vector_store import VectorStoreManager
+
+# 加载 .env（含 MYSQL_PASSWORD，该文件已被 .gitignore 排除，不会进版本库）
+load_dotenv()
 
 # MySQL 连接配置（与 Java application.yml 保持一致）
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
 MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
 MYSQL_USER = os.getenv("MYSQL_USER", "root")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "[已脱敏-见.env]")
+# 安全要求：密码必须通过环境变量（.env）注入，禁止硬编码默认值
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
 MYSQL_DB = os.getenv("MYSQL_DB", "smart_sql")
 
 
 def read_mysql_knowledge():
-    """从 MySQL 读取生效状态的知识库条目"""
+    """从 MySQL 读取生效状态的知识库条目
+
+    扩展性预留：当知识库达数万条时，应改为 keyset 分页批量读取
+    （按 id 游标，每批 500 条，边读边同步），避免全量加载导致 OOM。
+    当前 MVP 数据量小，全量读取可接受（YAGNI）。
+    """
+    if not MYSQL_PASSWORD:
+        raise RuntimeError(
+            "缺少 MYSQL_PASSWORD 环境变量。请在 smart-sql-ai/.env 中配置: "
+            "MYSQL_PASSWORD=你的密码"
+        )
+
     conn = pymysql.connect(
         host=MYSQL_HOST,
         port=MYSQL_PORT,
@@ -112,7 +128,7 @@ def verify_search(query):
     return results
 
 
-if __name__ == "__main__":
+def main():
     print("=" * 50)
     print("知识库同步: MySQL → ChromaDB")
     print("=" * 50)
@@ -135,3 +151,19 @@ if __name__ == "__main__":
         print(f"  命中{i+1}: {r['name']} (相似度: {r['score']})")
 
     print("\n[OK] 同步完成!")
+
+
+if __name__ == "__main__":
+    # 异常处理 + 退出码：脚本将来会被 Java/CI 调用，退出码是调用方判断成败的依据
+    try:
+        main()
+    except pymysql.MySQLError as e:
+        print(f"\n[FAIL] MySQL 连接/查询失败: {e}")
+        print("提示: 检查 MySQL 服务是否运行、MYSQL_PASSWORD 是否正确")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n[FAIL] 用户中断")
+        sys.exit(130)
+    except Exception as e:
+        print(f"\n[FAIL] 同步失败: {e}")
+        sys.exit(2)

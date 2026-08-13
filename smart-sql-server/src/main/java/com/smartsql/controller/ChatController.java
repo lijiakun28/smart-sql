@@ -1,9 +1,12 @@
 package com.smartsql.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartsql.dto.Result;
 import com.smartsql.entity.Message;
 import com.smartsql.service.ChatService;
 import com.smartsql.service.MessageService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +19,7 @@ import java.util.Map;
 /**
  * 问答 Controller - 核心对话端点
  */
+@Slf4j
 @RestController
 @RequestMapping("/api")
 public class ChatController {
@@ -25,6 +29,13 @@ public class ChatController {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    /** SSE 事件类型常量（修复题7：替代脆弱的字符串 contains 判断） */
+    private static final String SSE_TYPE_CONTENT = "content";
+    private static final String SSE_TYPE_THINKING = "thinking";
 
     /**
      * 查询会话消息列表
@@ -47,8 +58,8 @@ public class ChatController {
         @SuppressWarnings("unchecked")
         Map<String, Object> context = (Map<String, Object>) body.get("context");
 
-        // 更新会话名（如果是首条消息）
-        chatService.updateSessionNameIfFirstMessage(sessionId, question);
+        // 注意：首条消息自动命名已移至 ChatService.chatStream 内部
+        // （在保存用户消息之后执行，保证消息数判断正确）
 
         // SseEmitter 超时 5 分钟
         SseEmitter emitter = new SseEmitter(300_000L);
@@ -63,15 +74,11 @@ public class ChatController {
                 chunk -> {
                     try {
                         emitter.send(SseEmitter.event().data(chunk));
-                        // 累积内容（用于后续保存，简化处理）
-                        if (chunk.contains("\"type\":\"content\"")) {
-                            // 简单提取内容（生产环境建议用 JSON 解析）
-                            fullContent.append(chunk);
-                        } else if (chunk.contains("\"type\":\"thinking\"")) {
-                            thinkingContent.append(chunk);
-                        }
+                        // 修复题7：解析 SSE JSON，只提取纯文本内容落库
+                        // 原实现直接把 JSON 原始串 append 进数据库（非纯文本也非合法 JSON）
+                        appendChunkContent(chunk, fullContent, thinkingContent);
                     } catch (Exception e) {
-                        // 客户端断开会触发
+                        // 客户端断开会触发，不阻塞其他 chunk
                     }
                 },
                 error -> {
@@ -98,6 +105,29 @@ public class ChatController {
         );
 
         return emitter;
+    }
+
+    /**
+     * 解析 SSE chunk JSON，提取纯文本追加到目标缓冲
+     *
+     * chunk 形如：{"type":"content","content":"你好"} 或 {"type":"thinking","content":"..."}
+     * 使用 JsonNode.path()（取不到返回 null 而非抛异常），解析失败仅告警不中断流
+     */
+    private void appendChunkContent(String chunk, StringBuilder fullContent,
+                                    StringBuilder thinkingContent) {
+        try {
+            JsonNode node = objectMapper.readTree(chunk);
+            String type = node.path("type").asText();
+
+            if (SSE_TYPE_CONTENT.equals(type)) {
+                fullContent.append(node.path("content").asText());
+            } else if (SSE_TYPE_THINKING.equals(type)) {
+                thinkingContent.append(node.path("content").asText()).append("\n");
+            }
+            // done/error 事件在此无需处理
+        } catch (Exception e) {
+            log.warn("SSE chunk 解析失败: {}", chunk, e);
+        }
     }
 
     /**
