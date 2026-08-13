@@ -161,6 +161,27 @@
 
 ---
 
+## Day 5（知识库 API 联调 + 自动同步）
+
+### 坑 22：全局 logic-delete 配置与业务状态字段冲突
+- **现象**：知识库列表 API 返回 0 条，但 MySQL 里明明有数据；新建的知识也查不到
+- **原因**：`application.yml` 全局配置了 `logic-delete-field: status`（为会话表设计），MyBatis-Plus 给**所有**表查询自动加 `WHERE status=1`。而知识库表的 status 是业务状态字符串（'new'/'active'/'inactive'），永远不等于 1
+- **解决**：移除全局 logic-delete 配置；会话表的逻辑删除由 `SessionService.delete()` 手动 UPDATE status=0 实现
+- **教训**：**同一个字段名在不同表中语义不同**时，不能套全局配置。字段语义是表级的，不是应用级的；全局配置只适合所有表统一语义的字段（如 create_time）
+
+### 坑 23：MyBatis-Plus 3.5.9+ 分页插件拆分
+- **现象**：`selectPage` 返回 total=0、不分页；补写分页插件时 `PaginationInnerInterceptor` 类找不到
+- **原因**：MyBatis-Plus 3.5.9 把分页插件拆到独立模块 `mybatis-plus-jsqlparser`（因 JSqlParser 的 CVE 修复与 License 争议）
+- **解决**：`pom.xml` 添加 `mybatis-plus-jsqlparser` 依赖 + 注册 `MybatisPlusInterceptor` Bean
+- **教训**：① 分页必须显式注册插件（不注册静默退化，不报错——最阴险的失败模式）② 3.5.9 是 MyBatis-Plus 的重大拆分版本，升级前查 release notes
+
+### 坑 24：Maven Central 连接不稳定
+- **现象**：`mvn compile` 报 "Failed to read artifact descriptor"，curl Maven Central 返回 000
+- **解决**：`~/.m2/settings.xml` 配置阿里云镜像（mirrorOf=central）
+- **教训**：国内开发环境三件套齐全了：pip→清华、HF→hf-mirror、Maven→阿里云。**新环境第一天就该配齐所有镜像**
+
+---
+
 ## 通用经验总结
 
 | 类别 | 经验 |
