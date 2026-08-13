@@ -25,9 +25,11 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto
-      logic-delete-field: status
-      logic-delete-value: 0
-      logic-not-delete-value: 1
+      # 注意：不配置全局 logic-delete-field！
+      # status 字段在不同表语义不同：
+      #   session.status = 1/0（逻辑删除标记，Service 层手动处理）
+      #   knowledge_*.status = 'new'/'active'/'inactive'（业务状态，不是删除标记）
+      # 全局配置会导致知识库所有查询被自动加 WHERE status=1，永远查不到数据
 
 # AI 引擎地址
 smart-sql:
