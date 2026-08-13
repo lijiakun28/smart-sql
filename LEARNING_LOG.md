@@ -108,6 +108,29 @@
 
 ---
 
+## Day 4（Java 中间层编译启动 + 会话管理 API）✅
+
+### 任务：理解 Spring Boot 三层架构
+- **负责内容**：理解 Controller → Service → Mapper 分层；用测试脚本验证每个 API
+- **完成情况**：✅ 全程参与排查 4 个连环坑
+- **三层架构理解**（用自己的话）：
+  - **Controller**（表现层）：接收 HTTP 请求，解析参数，调用 Service，不写业务逻辑
+  - **Service**（业务层）：处理业务规则（如逻辑删除 status=0 而非物理删除）
+  - **Mapper**（数据层）：MyBatis-Plus 负责 SQL 生成，继承 `BaseMapper` 就有 CRUD
+
+### 今日实战学到的
+1. **JDK 23+ 注解处理变更**：Lombok 报"找不到符号"未必是依赖问题，可能是注解处理器没运行——排查顺序：版本兼容 → 依赖树 → 工具链行为
+2. **构建插件也需支持 JDK**：Spring Boot 3.3.5 编译过了但 run 不了（class 版本 69）
+3. **两套字符集命名体系**：MySQL 叫 utf8mb4，Java 叫 UTF-8，JDBC URL 用 Java 的
+4. **逻辑删除 vs 物理删除**：status=0 保留数据可追溯，DELETE 只是 UPDATE 的语法糖
+5. **Windows 进程管理**：`netstat -ano` 查端口占用 → `taskkill //F //PID` 杀进程
+
+### 测试验证记录
+- 会话创建/列表/改名/模糊搜索/删除/删除后列表 6 项测试全部通过 ✅
+- MySQL 数据验证：status=0 逻辑删除生效，时间戳正确 ✅
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）
