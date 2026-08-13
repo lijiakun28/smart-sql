@@ -169,7 +169,8 @@ async def sync_knowledge(request: KnowledgeSyncRequest):
     vs = get_vector_store_manager()
 
     if request.action == "delete":
-        ids = [str(item.id) for item in request.items]
+        # ChromaDB 中存储的 id 格式为 f"{category}_{id}"（与 upsert 一致）
+        ids = [f"{item.category}_{item.id}" for item in request.items]
         await vs.delete(ids)
         return {"status": "deleted", "count": len(ids)}
 
