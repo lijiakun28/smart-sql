@@ -2,9 +2,15 @@
 智能SQL - Python AI 引擎入口
 FastAPI 服务，负责 NL→SQL、RAG 检索、流式输出
 """
+import os
 import time
 import json
 import asyncio
+
+# ⚠️ 必须在导入任何 HuggingFace 相关库之前设置镜像地址
+# （huggingface_hub 在首次导入时缓存 ENDPOINT，之后修改无效）
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse

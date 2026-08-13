@@ -1,17 +1,18 @@
 # FastAPI & Server
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-sse-starlette==2.2.1
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+sse-starlette>=2.0.0
 
 # LangChain
-langchain==0.3.14
-langchain-openai==0.2.14
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-huggingface>=0.1.0
 
 # Vector Store & Embedding
-chromadb==0.5.23
-sentence-transformers==3.3.1
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
 
 # Utils
-pydantic==2.10.4
-python-dotenv==1.0.1
-httpx==0.28.1
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+httpx>=0.27.0

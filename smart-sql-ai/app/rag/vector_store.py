@@ -12,6 +12,33 @@ from app.config import settings
 from app.rag.embedding import get_embedding_model
 
 
+class LangChainEmbeddingAdapter:
+    """将 LangChain HuggingFaceEmbeddings 适配为 ChromaDB EmbeddingFunction 接口"""
+
+    def __init__(self):
+        self.model = get_embedding_model()
+
+    def __call__(self, input):
+        """旧版 ChromaDB 调用入口"""
+        return self.embed_documents(input)
+
+    def embed_query(self, input):
+        """新版 ChromaDB (1.5+) 查询入口：List[str] -> List[List[float]]"""
+        if isinstance(input, str):
+            input = [input]
+        return self.model.embed_documents(input)
+
+    def embed_documents(self, input):
+        """新版 ChromaDB (1.5+) 文档入口：List[str] -> List[List[float]]"""
+        if isinstance(input, str):
+            input = [input]
+        return self.model.embed_documents(input)
+
+    def name(self):
+        """ChromaDB 要求 EmbeddingFunction 提供 name() 方法"""
+        return settings.EMBEDDING_MODEL
+
+
 class VectorStoreManager:
     """ChromaDB 向量存储管理器"""
 
@@ -27,12 +54,12 @@ class VectorStoreManager:
             settings=ChromaSettings(anonymized_telemetry=False)
         )
 
-        # Embedding 函数
-        self.embedding_fn = get_embedding_model()
-
         # 获取或创建 collection
+        # ⚠️ 必须传入 embedding_function，否则 ChromaDB 会尝试下载
+        # 它自带的 ONNX 模型（国内网络无法访问）
         self.collection = self.client.get_or_create_collection(
             name=self.COLLECTION_NAME,
+            embedding_function=LangChainEmbeddingAdapter(),
             metadata={"hnsw:space": "cosine"}  # 余弦相似度
         )
 

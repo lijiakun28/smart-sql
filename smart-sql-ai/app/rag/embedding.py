@@ -3,6 +3,12 @@ Embedding 模型封装
 使用本地 sentence-transformers 模型，无需外部 API
 """
 import os
+
+# 国内网络环境下使用 HuggingFace 镜像加速模型下载
+# （海外网络可删除此设置）
+if not os.environ.get("HF_ENDPOINT"):
+    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 from app.config import settings
 
 
