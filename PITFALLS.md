@@ -180,6 +180,24 @@
 - **解决**：`~/.m2/settings.xml` 配置阿里云镜像（mirrorOf=central）
 - **教训**：国内开发环境三件套齐全了：pip→清华、HF→hf-mirror、Maven→阿里云。**新环境第一天就该配齐所有镜像**
 
+### 坑 25：@Value 字段注入 vs 构造器执行顺序
+- **现象**：问答接口报 `Connection refused: getsockopt: /[::1]:80`——WebClient 请求打到了 localhost 的 80 端口
+- **原因**：Spring 的 `@Value` 字段注入发生在**构造器执行之后**。在构造器里读 `@Value` 字段拿到的是 null，`WebClient.builder().baseUrl(null)` 没有 baseUrl，后续相对路径请求解析到默认 localhost:80
+- **解决**：改为**构造器参数注入**：`public AiProxyService(ObjectMapper om, @Value("${...}") String url)`
+- **教训**：构造器里用注入字段 = 经典陷阱。规则：**初始化逻辑依赖配置时，配置必须走构造器参数注入**。报错指向的端口（80）往往就是线索——"为什么是 80？因为 baseUrl 是 null"
+
+### 坑 26：校验异常被通用异常处理器吞掉
+- **现象**：加了 @Pattern 校验后，非法参数返回 HTTP 200 + code 500（消息正确但状态码错误）
+- **原因**：GlobalExceptionHandler 的 `Exception.class` 处理器捕获了 ConstraintViolationException，包装成 Result.fail(500)
+- **解决**：新增专门的 ConstraintViolationException 处理器，返回 `ResponseEntity.badRequest()`（HTTP 400 + code 400）
+- **教训**：通用 Exception 处理器会"吞掉"所有特定异常——每引入一种新异常类型（校验、限流、认证），都要检查是否需要专门的处理器。**响应码语义与异常类型要一一对应**
+
+### 坑 27：SSE 流式验证方法错误（误报 bug）
+- **现象**：验证"AI 是否使用新知识"时检查原始 SSE 字符串是否包含表名，结果误判"异步同步失败"
+- **原因**：DeepSeek 流式返回按**单字符**分块（"统"、"计"、"当"...每个 chunk 一个 JSON 信封），表名 `dwd_async_def` 在原始流中永远不连续出现
+- **解决**：检查**落库后的完整消息内容**（Java 侧已解析拼接纯文本），而不是原始 SSE 流
+- **教训**：验证流式接口时，断言对象应该是"最终消费形态"（落库数据），而不是中间形态（分块流）。**先确认验证方法正确，再怀疑代码有 bug**
+
 ---
 
 ## 通用经验总结
