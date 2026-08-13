@@ -4,7 +4,9 @@ import com.smartsql.dto.Result;
 import com.smartsql.entity.KnowledgeCaliber;
 import com.smartsql.entity.KnowledgeTerm;
 import com.smartsql.service.KnowledgeService;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.Map;
 /**
  * 知识库管理 Controller
  */
+@Validated  // 作业题1修复：必须加 @Validated 才能让 @RequestParam 的 @Pattern 校验生效
 @RestController
 @RequestMapping("/api/knowledge")
 public class KnowledgeController {
@@ -48,7 +51,8 @@ public class KnowledgeController {
     }
 
     @PutMapping("/terms/{id}/status")
-    public Result<?> changeTermStatus(@PathVariable Long id, @RequestParam String status) {
+    public Result<?> changeTermStatus(@PathVariable Long id,
+            @RequestParam @Pattern(regexp = "active|inactive", message = "status 仅支持 active 或 inactive") String status) {
         knowledgeService.changeTermStatus(id, status);
         return Result.ok();
     }
@@ -81,7 +85,8 @@ public class KnowledgeController {
     }
 
     @PutMapping("/calibers/{id}/status")
-    public Result<?> changeCaliberStatus(@PathVariable Long id, @RequestParam String status) {
+    public Result<?> changeCaliberStatus(@PathVariable Long id,
+            @RequestParam @Pattern(regexp = "active|inactive", message = "status 仅支持 active 或 inactive") String status) {
         knowledgeService.changeCaliberStatus(id, status);
         return Result.ok();
     }

@@ -36,6 +36,7 @@ public class ChatController {
     /** SSE 事件类型常量（修复题7：替代脆弱的字符串 contains 判断） */
     private static final String SSE_TYPE_CONTENT = "content";
     private static final String SSE_TYPE_THINKING = "thinking";
+    private static final String SSE_TYPE_DONE = "done";
 
     /**
      * 查询会话消息列表
@@ -76,7 +77,7 @@ public class ChatController {
                         emitter.send(SseEmitter.event().data(chunk));
                         // 修复题7：解析 SSE JSON，只提取纯文本内容落库
                         // 原实现直接把 JSON 原始串 append 进数据库（非纯文本也非合法 JSON）
-                        appendChunkContent(chunk, fullContent, thinkingContent);
+                        appendChunkContent(chunk, fullContent, thinkingContent, sessionId);
                     } catch (Exception e) {
                         // 客户端断开会触发，不阻塞其他 chunk
                     }
@@ -114,7 +115,7 @@ public class ChatController {
      * 使用 JsonNode.path()（取不到返回 null 而非抛异常），解析失败仅告警不中断流
      */
     private void appendChunkContent(String chunk, StringBuilder fullContent,
-                                    StringBuilder thinkingContent) {
+                                    StringBuilder thinkingContent, Long sessionId) {
         try {
             JsonNode node = objectMapper.readTree(chunk);
             String type = node.path("type").asText();
@@ -123,8 +124,11 @@ public class ChatController {
                 fullContent.append(node.path("content").asText());
             } else if (SSE_TYPE_THINKING.equals(type)) {
                 thinkingContent.append(node.path("content").asText()).append("\n");
+            } else if (SSE_TYPE_DONE.equals(type)) {
+                // 作业题4修复：AI 真实耗时在流的 done 事件里（Python 侧已统计），
+                // 在流内消费它——而不是用 @Around 切 chat() 方法（那只能测到 SSE 建连耗时）
+                log.info("[问答日志] 会话={} AI回答耗时={}秒", sessionId, node.path("elapsed").asDouble());
             }
-            // done/error 事件在此无需处理
         } catch (Exception e) {
             log.warn("SSE chunk 解析失败: {}", chunk, e);
         }

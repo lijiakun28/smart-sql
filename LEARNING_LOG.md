@@ -203,6 +203,39 @@
 
 ---
 
+## Day 5 作业（代码改进与漏洞排查 4 题，总分 82.5）
+
+> 规则调整：从 Day 5 起每天只分配代码改进/漏洞题（最多4道）；概念理解题留到项目完成后统一问。
+
+### 题 1：status 参数未校验漏洞 — 90 分
+**代码来源**：`KnowledgeController.java`（changeTermStatus 接口）、`KnowledgeService.java`（同步逻辑只判断 active）
+**我的回答**：任意 status 写入导致脏数据，条目陷入非合法状态、查询忽略、需手动修库；修法=Controller 加 @Pattern 校验，理由=职责分离+尽早失败。
+**点评**：标准答案。补充陷阱：Spring Boot 3 的 @RequestParam 校验必须加类级 @Validated 才生效（静默失效家族）；进阶方案=枚举参数类型（类型安全>正则安全，非法值自动 400）。
+**已修复** ✅：@Validated + @Pattern(regexp="active|inactive")
+
+### 题 2：.block() 阻塞隐患 — 60 分
+**代码来源**：`AiProxyService.java`（syncKnowledge 的 .block()）
+**我的回答**：上 RabbitMQ/Kafka，CRUD 后发消息，消费者异步处理+重试死信。
+**点评**：MQ 方案本身正确但是过度设计（无视题干 @Async 提示）。MVP 答案=@Async 一行注解+线程池。上 MQ 的条件：消息不能丢/多消费者/削峰——我们 best-effort 可手动兜底，不满足任何一条。暴露第二次"超前设计"倾向，口诀：**先量级、后方案**。
+**已修复** ✅：@EnableAsync + knowledgeSyncExecutor 线程池 + @Async
+
+### 题 3：WebClient 无超时漏洞 — 95 分
+**代码来源**：`AiProxyService.java`（WebClient.create() 无超时配置）
+**我的回答**：默认超时无穷大，请求永久阻塞、线程池耗尽、应用不可用；前端一直"加载中"直到浏览器超时；修法不知道。
+**点评**：识别满分，尤其"线程池耗尽"的雪崩洞察。教学：连接超时(5s快速失败) vs 响应超时(120s兼顾SSE长响应)两个层次；超时后要转成用户可见的明确错误。
+**已修复** ✅：Reactor Netty HttpClient 配置 connectTimeout 5s + responseTimeout 120s
+
+### 题 4：耗时统计陷阱 — 85 分
+**代码来源**：`ChatLogAspect.java`、`ChatController.java`（chat 方法只建立 SSE 通道）
+**我的回答**：@Around 注解捕获前后时间点算耗时；具体代码不知道。
+**点评**：@Around 选对了，但没识破陷阱——chat() 只建 SSE 通道（~1ms），真正耗时在流里。指标与业务语义错位的经典案例。正确做法：消费 Python done 事件自带的 elapsed 字段。
+**已修复** ✅：appendChunkContent 解析 done 事件记录 AI 真实耗时
+
+### 作业模式总结
+第二次暴露"超前设计"倾向（题2 的 MQ vs @Async）——选型口诀：**先问量级，再选方案**。
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）
