@@ -177,6 +177,32 @@
 
 ---
 
+## Day 5（知识库 API 联调 + 自动同步 + AOP 日志）✅
+
+### 任务：测试知识库完整流程 + 理解"为什么 Java 不直接调 LLM"
+- **完成情况**：✅ 全程见证"题 2 修复落地"的终极验证
+
+### 今日核心成果（你的作业题 2 变成了真实功能）
+1. **自动同步落地**：Java 知识库 CRUD → 自动调用 Python `/ai/knowledge/sync` → 向量库即时更新
+   - 规则实现：只有 active 状态入向量库（需求原文"只有生效的条目，智能SQL在做回答时才能使用"）
+   - 同步失败 best-effort：告警但不阻断主流程，可手动脚本兜底
+2. **终极验证**：新增口径"5G套餐退订用户数" → 生效 → 提问 → **AI 立即使用新知识，无需手动同步和重启**
+
+### 今日学到的
+1. **"为什么 Java 不直接调 LLM"的答案**：职责分离——Java 管业务（CRUD/日志/状态机），Python 管 AI（LangChain/向量库生态）。硬在 Java 里调 LLM 会失去 Python AI 生态；且企业里 AI 引擎常需独立扩缩容
+2. **字段语义是表级的**：logic-delete 全局配置踩坑——status 在会话表是删除标记、在知识表是业务状态，同一名字不同语义
+3. **静默退化最危险**：分页插件缺失时 selectPage 不报错，只返回 total=0——验证接口时不仅要看"通不通"，还要看"数据对不对"
+4. **AOP 是什么**：不修改业务代码，横切织入日志/事务/权限——`@Before`/`@AfterReturning` 两个注解搞定问答日志
+
+### 代码来源
+- `KnowledgeService.java`（syncTermToAi/syncCaliberToAi/syncToAi）
+- `AiProxyService.java`（syncKnowledge 调用 Python）
+- `ChatLogAspect.java`（AOP 问答日志）
+- `MyBatisPlusConfig.java`（分页插件注册）
+- `app/main.py`（/ai/knowledge/sync 的 delete 修复为 f"{category}_{id}"）
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）
