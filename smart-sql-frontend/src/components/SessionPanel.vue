@@ -1,5 +1,5 @@
 <template>
-  <div class="session-panel">
+  <div class="session-panel" @click="contextMenu.visible = false">
     <div class="panel-header">
       <el-button type="primary" size="small" @click="$emit('create')">
         <el-icon><Plus /></el-icon> 新建会话
@@ -12,40 +12,51 @@
         :key="s.id"
         :class="['session-item', { active: s.id === sessionStore.currentId }]"
         @click="$emit('select', s.id)"
+        @contextmenu.prevent="openContextMenu($event, s)"
       >
         <div class="session-name">{{ s.sessionName || '新会话' }}</div>
         <div class="session-time">{{ formatTime(s.updateTime) }}</div>
-
-        <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, s)">
-          <el-icon class="more-icon"><MoreFilled /></el-icon>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="rename">
-                <el-icon><Edit /></el-icon> 重命名
-              </el-dropdown-item>
-              <el-dropdown-item command="delete" divided>
-                <el-icon><Delete /></el-icon> 删除
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <div class="hint-text">右键菜单</div>
       </div>
 
       <div v-if="sessionStore.sessions.length === 0" class="empty-tip">
         暂无会话
       </div>
     </div>
+
+    <!-- 右键菜单（用户反馈：重命名/删除操作不便，改为右键呼出） -->
+    <div
+      v-if="contextMenu.visible"
+      class="context-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      @click.stop
+    >
+      <div class="menu-item" @click="handleRename(contextMenu.session)">
+        <el-icon><Edit /></el-icon> 重命名
+      </div>
+      <div class="menu-item danger" @click="handleDelete(contextMenu.session)">
+        <el-icon><Delete /></el-icon> 删除
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/store/session'
 import { renameSession, deleteSession } from '@/api/session'
 
 const emit = defineEmits(['select', 'create'])
 const sessionStore = useSessionStore()
+
+/** 右键菜单状态 */
+const contextMenu = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  session: null
+})
 
 onMounted(() => {
   sessionStore.loadSessions()
@@ -62,28 +73,42 @@ const formatTime = (time) => {
   return d.toLocaleDateString()
 }
 
-/** 操作命令 */
-const handleCommand = async (cmd, session) => {
-  if (cmd === 'rename') {
-    try {
-      const { value } = await ElMessageBox.prompt('请输入新名称', '重命名', {
-        inputValue: session.sessionName
-      })
-      if (value) {
-        await renameSession(session.id, value)
-        sessionStore.loadSessions()
-      }
-    } catch {}
-  } else if (cmd === 'delete') {
-    try {
-      await ElMessageBox.confirm('删除当前对话，将不保留任何信息和记录，确认删除吗？', '确认删除', {
-        type: 'warning'
-      })
-      await deleteSession(session.id)
-      ElMessage.success('已删除')
+/** 打开右键菜单 */
+const openContextMenu = (event, session) => {
+  contextMenu.visible = true
+  contextMenu.x = event.clientX
+  contextMenu.y = event.clientY
+  contextMenu.session = session
+}
+
+/** 重命名 */
+const handleRename = async (session) => {
+  contextMenu.visible = false
+  if (!session) return
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新名称', '重命名', {
+      inputValue: session.sessionName
+    })
+    if (value) {
+      await renameSession(session.id, value)
+      ElMessage.success('已保存')
       sessionStore.loadSessions()
-    } catch {}
-  }
+    }
+  } catch { /* 用户取消 */ }
+}
+
+/** 删除 */
+const handleDelete = async (session) => {
+  contextMenu.visible = false
+  if (!session) return
+  try {
+    await ElMessageBox.confirm('删除当前对话，将不保留任何信息和记录，确认删除吗？', '确认删除', {
+      type: 'warning'
+    })
+    await deleteSession(session.id)
+    ElMessage.success('已删除')
+    sessionStore.loadSessions()
+  } catch { /* 用户取消 */ }
 }
 </script>
 
@@ -94,6 +119,7 @@ const handleCommand = async (cmd, session) => {
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .panel-header {
@@ -122,7 +148,7 @@ const handleCommand = async (cmd, session) => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding-right: 24px;
+    padding-right: 8px;
   }
 
   .session-time {
@@ -131,16 +157,18 @@ const handleCommand = async (cmd, session) => {
     margin-top: 4px;
   }
 
-  .more-icon {
+  .hint-text {
     position: absolute;
     right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    display: none;
-    color: #909399;
+    font-size: 11px;
+    color: #c0c4cc;
+    opacity: 0;
+    transition: opacity 0.2s;
   }
 
-  &:hover .more-icon { display: block; }
+  &:hover .hint-text { opacity: 1; }
 }
 
 .empty-tip {
@@ -148,5 +176,36 @@ const handleCommand = async (cmd, session) => {
   padding: 40px 20px;
   color: #909399;
   font-size: 13px;
+}
+
+/* 右键菜单 */
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  min-width: 120px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #303133;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: #f0f5ff; }
+
+  &.danger {
+    color: #f56c6c;
+    border-top: 1px solid #f2f3f5;
+    &:hover { background: #fef0f0; }
+  }
 }
 </style>

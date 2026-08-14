@@ -20,12 +20,16 @@
 
       <!-- AI 消息 -->
       <div v-else class="ai-content">
-        <!-- 思考过程 -->
-        <el-collapse v-if="message.thinking" class="thinking-collapse">
-          <el-collapse-item title="💭 思考过程">
-            <pre class="thinking-text">{{ message.thinking }}</pre>
-          </el-collapse-item>
-        </el-collapse>
+        <!-- 思考过程（用户反馈：展开图标不可见——自定义可见箭头按钮） -->
+        <div v-if="message.thinking" class="thinking-collapse">
+          <div class="thinking-header" @click="showThinking = !showThinking">
+            <el-icon class="arrow" :class="{ rotated: showThinking }">
+              <ArrowRight />
+            </el-icon>
+            <span>💭 思考过程</span>
+          </div>
+          <pre v-if="showThinking" class="thinking-text">{{ message.thinking }}</pre>
+        </div>
 
         <!-- SQL 代码（带高亮） -->
         <div class="sql-block" v-if="extractSql(message.content)">
@@ -44,13 +48,13 @@
         <!-- 流式加载指示 -->
         <span v-if="message.isStreaming" class="streaming-cursor">▊</span>
 
-        <!-- 操作按钮 -->
+        <!-- 操作按钮（用户反馈：图标纯白与背景融合——加可见颜色和背景） -->
         <div v-if="!message.isStreaming && message.role === 'assistant'" class="action-buttons">
-          <el-button size="small" text @click="$emit('feedback', index, 'like')">
-            <el-icon><ThumbUp /></el-icon>
+          <el-button size="small" class="feedback-btn" @click="$emit('feedback', index, 'like')">
+            <el-icon><ThumbUp /></el-icon> 有用
           </el-button>
-          <el-button size="small" text @click="$emit('feedback', index, 'dislike')">
-            <el-icon><ThumbDown /></el-icon>
+          <el-button size="small" class="feedback-btn" @click="$emit('feedback', index, 'dislike')">
+            <el-icon><ThumbDown /></el-icon> 没用
           </el-button>
         </div>
       </div>
@@ -59,12 +63,16 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import hljs from 'highlight.js/lib/core'
 import sql from 'highlight.js/lib/languages/sql'
-import 'highlight.js/styles/github.css'
+// 用户反馈：github.css 是浅色主题（黑字），SQL 块是深色背景 → 换深色主题
+import 'highlight.js/styles/github-dark.css'
 
 hljs.registerLanguage('sql', sql)
+
+/** 思考过程展开状态 */
+const showThinking = ref(false)
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -182,10 +190,31 @@ const copySql = () => {
 
 .thinking-collapse {
   margin-bottom: 12px;
+
+  .thinking-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #606266;
+    user-select: none;
+
+    .arrow {
+      transition: transform 0.2s;
+      color: #409eff;
+      &.rotated { transform: rotate(90deg); }
+    }
+  }
+
   .thinking-text {
+    margin-top: 8px;
     font-size: 12px;
     color: #909399;
     white-space: pre-wrap;
+    background: #fafafa;
+    padding: 10px;
+    border-radius: 6px;
   }
 }
 
@@ -212,5 +241,21 @@ const copySql = () => {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid #e4e7ed;
+  display: flex;
+  gap: 8px;
+
+  /* 用户反馈修复：图标纯白与背景融合 → 明确颜色+边框可见 */
+  .feedback-btn {
+    color: #606266;
+    border: 1px solid #dcdfe6;
+    background: #fff;
+
+    .el-icon { color: #909399; }
+    &:hover {
+      color: #409eff;
+      border-color: #409eff;
+      .el-icon { color: #409eff; }
+    }
+  }
 }
 </style>
