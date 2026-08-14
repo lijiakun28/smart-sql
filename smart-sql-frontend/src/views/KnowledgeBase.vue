@@ -19,7 +19,7 @@
             clearable
             @keyup.enter="loadTerms"
           />
-          <el-button type="primary" size="small" @click="showTermDialog = true">
+          <el-button type="primary" size="small" @click="openCreateTerm">
             <el-icon><Plus /></el-icon> 新增
           </el-button>
         </div>
@@ -79,7 +79,7 @@
             clearable
             @keyup.enter="loadCalibers"
           />
-          <el-button type="primary" size="small" @click="showCaliberDialog = true">
+          <el-button type="primary" size="small" @click="openCreateCaliber">
             <el-icon><Plus /></el-icon> 新增
           </el-button>
         </div>
@@ -132,10 +132,10 @@
       v-model="showTermDialog"
       :title="editingTerm ? '修改业务术语' : '新增业务术语'"
       width="560px"
-      @closed="editingTerm = null"
+      @closed="resetTermForm"
     >
-      <el-form :model="termForm" label-width="80px">
-        <el-form-item label="术语名称" required>
+      <el-form :model="termForm" :rules="termRules" ref="termFormRef" label-width="80px">
+        <el-form-item label="术语名称" prop="termName">
           <el-input v-model="termForm.termName" maxlength="200" />
         </el-form-item>
         <el-form-item label="业务描述">
@@ -153,10 +153,10 @@
       v-model="showCaliberDialog"
       :title="editingCaliber ? '修改计算口径' : '新增计算口径'"
       width="640px"
-      @closed="editingCaliber = null"
+      @closed="resetCaliberForm"
     >
-      <el-form :model="caliberForm" label-width="80px">
-        <el-form-item label="口径名称" required>
+      <el-form :model="caliberForm" :rules="caliberRules" ref="caliberFormRef" label-width="80px">
+        <el-form-item label="口径名称" prop="caliberName">
           <el-input v-model="caliberForm.caliberName" maxlength="100" />
         </el-form-item>
         <el-form-item label="SQL逻辑">
@@ -193,6 +193,7 @@ const termLoading = ref(false)
 const showTermDialog = ref(false)
 const editingTerm = ref(null)
 const termForm = reactive({ termName: '', businessDesc: '' })
+const termFormRef = ref(null)
 
 // 口径库状态
 const caliberKeyword = ref('')
@@ -203,10 +204,53 @@ const caliberLoading = ref(false)
 const showCaliberDialog = ref(false)
 const editingCaliber = ref(null)
 const caliberForm = reactive({ caliberName: '', sqlLogic: '', businessDesc: '' })
+const caliberFormRef = ref(null)
+
+// 作业题1修复：表单校验规则
+const termRules = {
+  termName: [
+    { required: true, message: '术语名称不能为空', trigger: 'blur' },
+    { max: 200, message: '名称不超过200字符', trigger: 'blur' }
+  ]
+}
+const caliberRules = {
+  caliberName: [
+    { required: true, message: '口径名称不能为空', trigger: 'blur' },
+    { max: 100, message: '名称不超过100字符', trigger: 'blur' }
+  ]
+}
 
 // 状态映射
 const statusType = (s) => ({ active: 'success', inactive: 'warning', new: 'info', modified: '' }[s] || 'info')
 const statusLabel = (s) => ({ active: '生效', inactive: '失效', new: '新增', modified: '修改' }[s] || s)
+
+// ─── 作业题2修复：表单生命周期管理 ───
+
+/** 打开新增弹窗（进入时初始化：显式重置表单，防止残留上次数据） */
+const openCreateTerm = () => {
+  editingTerm.value = null
+  Object.assign(termForm, { termName: '', businessDesc: '' })
+  showTermDialog.value = true
+}
+
+/** 弹窗关闭统一清理（离开时清理：重置编辑标记和表单数据） */
+const resetTermForm = () => {
+  editingTerm.value = null
+  Object.assign(termForm, { termName: '', businessDesc: '' })
+}
+
+/** 打开新增口径弹窗（同术语） */
+const openCreateCaliber = () => {
+  editingCaliber.value = null
+  Object.assign(caliberForm, { caliberName: '', sqlLogic: '', businessDesc: '' })
+  showCaliberDialog.value = true
+}
+
+/** 口径弹窗关闭统一清理 */
+const resetCaliberForm = () => {
+  editingCaliber.value = null
+  Object.assign(caliberForm, { caliberName: '', sqlLogic: '', businessDesc: '' })
+}
 
 // ─── 术语库 CRUD ───
 const loadTerms = async () => {
@@ -218,10 +262,14 @@ const loadTerms = async () => {
 }
 
 const saveTerm = async () => {
-  if (editingTerm.value) {
-    await updateTerm(editingTerm.value.id, termForm)
-  } else {
-    await createTerm(termForm)
+  // 作业题1修复：双层防线
+  await termFormRef.value.validate()     // 第1层：前端校验（体验层），失败抛出
+  const res = editingTerm.value
+    ? await updateTerm(editingTerm.value.id, termForm)
+    : await createTerm(termForm)
+  if (res.code !== 200) {                // 第2层：响应码检查（真实性层）
+    ElMessage.error(res.message || '保存失败')
+    return
   }
   ElMessage.success('保存成功')
   showTermDialog.value = false
@@ -259,10 +307,14 @@ const loadCalibers = async () => {
 }
 
 const saveCaliber = async () => {
-  if (editingCaliber.value) {
-    await updateCaliber(editingCaliber.value.id, caliberForm)
-  } else {
-    await createCaliber(caliberForm)
+  // 作业题1修复：双层防线（同术语）
+  await caliberFormRef.value.validate()
+  const res = editingCaliber.value
+    ? await updateCaliber(editingCaliber.value.id, caliberForm)
+    : await createCaliber(caliberForm)
+  if (res.code !== 200) {
+    ElMessage.error(res.message || '保存失败')
+    return
   }
   ElMessage.success('保存成功')
   showCaliberDialog.value = false
