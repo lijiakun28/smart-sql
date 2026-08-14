@@ -1,6 +1,7 @@
 package com.smartsql.service;
 
 import com.smartsql.entity.Message;
+import com.smartsql.entity.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -34,6 +35,13 @@ public class ChatService {
      */
     public Flux<String> chatStream(Long sessionId, String question,
                                     String commandType, Object context) {
+        // 0. 作业题3修复：校验会话有效性，防止消息被写入已删除的会话
+        //    （message 表无外键约束，不做校验消息会静默落入 status=0 的会话）
+        Session session = sessionService.getById(sessionId);
+        if (session == null || session.getStatus() == null || session.getStatus() != 1) {
+            return Flux.error(new IllegalArgumentException("会话不存在或已删除"));
+        }
+
         // 1. 保存用户消息
         Message userMsg = new Message();
         userMsg.setSessionId(sessionId);

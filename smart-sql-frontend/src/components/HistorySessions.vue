@@ -30,10 +30,10 @@
 
       <!-- 内容展示 -->
       <div class="history-list" v-loading="loading">
-        <el-empty v-if="sessionList.length === 0" description="没有数据" :image-size="60" />
+        <el-empty v-if="sessionStore.sessions.length === 0" description="没有数据" :image-size="60" />
 
         <div
-          v-for="s in sessionList"
+          v-for="s in sessionStore.sessions"
           :key="s.id"
           :class="['history-item', { current: s.id === sessionStore.currentId }]"
           @click="$emit('open', s.id)"
@@ -62,7 +62,7 @@
 
       <!-- 底部提示（需求原文：仅保留7天内的对话，当前总共xxx条记录） -->
       <div class="history-footer">
-        仅保留7天内的对话，当前总共 {{ sessionList.length }} 条记录
+        仅保留7天内的对话，当前总共 {{ sessionStore.sessions.length }} 条记录
       </div>
     </div>
   </div>
@@ -72,20 +72,22 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/store/session'
+import { useChatStore } from '@/store/chat'
 import { renameSession, deleteSession } from '@/api/session'
 
 const emit = defineEmits(['close', 'open'])
 
 const sessionStore = useSessionStore()
+const chatStore = useChatStore()
 const keyword = ref('')
-const sessionList = ref([])
 const loading = ref(false)
 
+// 作业题2修复：删除本地 sessionList 快照，模板直接消费响应式 store
+// （快照副本制造"两份数据要同步"的问题，问题本不该存在）
 const loadSessions = async () => {
   loading.value = true
   try {
     await sessionStore.loadSessions(keyword.value)
-    sessionList.value = sessionStore.sessions
   } finally {
     loading.value = false
   }
@@ -124,6 +126,14 @@ const handleDelete = async (session) => {
     })
     await deleteSession(session.id)
     ElMessage.success('已删除')
+
+    // 作业题3修复：删除的是当前会话时，重置聊天区状态并关闭浮框
+    // （否则聊天区残留已删除会话的消息，用户还能继续向"已删除会话"发问）
+    if (session.id === sessionStore.currentId) {
+      chatStore.setSession(null)
+      chatStore.setMessages([])
+      emit('close')
+    }
     loadSessions()
   } catch { /* 用户取消 */ }
 }

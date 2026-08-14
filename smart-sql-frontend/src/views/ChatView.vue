@@ -144,6 +144,7 @@ const showHistory = ref(false)
 const messagesContainer = ref(null)
 let abortController = null
 let streamingIndex = -1   // 作业题2修复：记录正在生成的 AI 消息索引，停止时使用
+let sessionRequestSeq = 0   // 作业题1修复：会话切换请求令牌，消除竞态
 
 /** 处理发送 */
 const handleSend = async () => {
@@ -165,7 +166,7 @@ const handleSend = async () => {
   const aiMsgIndex = chatStore.addAssistantMessage()
   streamingIndex = aiMsgIndex
 
-  await scrollToBottom()
+  scrollToBottom(true)
 
   // 发送 SSE 请求
   // 浏览器测试修复：context 必须传对象（后端/Python 期望 dict），不能传数组
@@ -217,12 +218,17 @@ const handleStop = () => {
   }
 }
 
-/** 选择会话 */
+/** 选择会话（作业题1修复：请求令牌消除竞态——只有最新请求允许更新消息列表） */
 const handleSelectSession = async (sessionId) => {
+  const seq = ++sessionRequestSeq   // 发起时取号
   chatStore.setSession(sessionId)
+
   const res = await listMessages(sessionId)
+  if (seq !== sessionRequestSeq) {
+    return   // 期间用户点了别的会话，本次响应作废
+  }
   chatStore.setMessages(res.data || [])
-  await scrollToBottom()
+  scrollToBottom(true)   // 切换会话必须定位到底部
 }
 
 /** 创建会话 */
@@ -255,12 +261,27 @@ const handleFeedback = (index, type) => {
   ElMessage.success(type === 'like' ? '感谢您的点赞！' : '感谢您的反馈，我们会持续改进！')
 }
 
-/** 滚动到底部 */
-const scrollToBottom = async () => {
-  await nextTick()
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+/** 滚动到底部
+ * 作业题4修复（双武器）：
+ * ① rAF 节流：多个 chunk 的滚动请求合并到每帧一次，消除 Layout Thrashing
+ * ② 滚动锁：用户主动上滑查看历史时（距底部 >40px）暂停自动滚动，尊重用户意图
+ */
+let scrollPending = false
+const scrollToBottom = (force = false) => {
+  // 滚动锁：用户主动上滑查看历史时（距底部 >40px）暂停自动滚动
+  // force=true 用于切换会话/首条消息等必须定位到底部的场景
+  const el = messagesContainer.value
+  if (!force && el && el.scrollHeight - el.scrollTop - el.clientHeight > 40) {
+    return
   }
+  if (scrollPending) return   // 一帧内只排队一次
+  scrollPending = true
+  requestAnimationFrame(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+    scrollPending = false
+  })
 }
 </script>
 
