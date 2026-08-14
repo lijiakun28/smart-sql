@@ -50,14 +50,16 @@ public class AiProxyService {
      * @param question    用户问题
      * @param commandType 命令类型
      * @param context     上下文信息
+     * @param history     多轮对话历史 [{role, content}, ...]
      * @return Flux<String> 流式响应
      */
-    public Flux<String> chatStream(String question, String commandType, Object context) {
-        Map<String, Object> requestBody = Map.of(
-                "question", question,
-                "command_type", commandType != null ? commandType : "generate",
-                "context", context != null ? context : Map.of()
-        );
+    public Flux<String> chatStream(String question, String commandType, Object context,
+                                   java.util.List<Map<String, Object>> history) {
+        Map<String, Object> requestBody = new java.util.LinkedHashMap<>();
+        requestBody.put("question", question);
+        requestBody.put("command_type", commandType != null ? commandType : "generate");
+        requestBody.put("context", context != null ? context : Map.of());
+        requestBody.put("history", history != null ? history : java.util.List.of());
 
         return webClient.post()
                 .uri("/ai/generate/stream")

@@ -52,9 +52,32 @@ SYSTEM_PROMPT = """你是一个专业的数据仓库 SQL 开发助手。你的�
 2. SQL 放在 ```sql 代码块中
 3. 若存在待确认信息，SQL 代码块之后附"待确认信息："列表"""
 
-USER_PROMPT = """用户问题：{question}
+USER_PROMPT = """对话历史：
+{history}
 
-请生成对应的 SQL 查询语句："""
+用户问题：{question}
+
+请生成对应的 SQL 查询语句。如果用户问题是对历史回答的修改（如"加一个过滤条件"、"改成按地市分组"），请基于对话历史中最近的 SQL 进行修改。"""
+
+
+def format_history(history) -> str:
+    """
+    多轮对话历史格式化：[{role, content}, ...] → 可读文本
+
+    架构说明：历史由 Java 从 MySQL 读取传入（无状态设计），
+    而非 LangChain 进程内 Memory（ConversationBufferMemory 在 1.x 已废弃，
+    且进程内状态重启即丢失、无法多实例共享）。
+    Java 中间层持有会话数据，是唯一事实源。
+    """
+    if not history:
+        return "（无历史对话，这是第一轮提问）"
+
+    lines = []
+    for msg in history[-6:]:  # 最多保留最近6条（3轮问答）
+        role = "用户" if msg.get("role") == "user" else "AI"
+        content = str(msg.get("content", ""))[:500]  # 每条截断500字，防历史膨胀
+        lines.append(f"{role}：{content}")
+    return "\n".join(lines)
 
 
 def format_context(context) -> str:
@@ -139,6 +162,7 @@ def build_sql_generation_chain(knowledge_texts: list = None):
         {
             "question": lambda x: x["question"],
             "context": lambda x: format_context(x.get("context")),
+            "history": lambda x: format_history(x.get("history")),
             "knowledge_context": lambda _: knowledge_context,
         }
         | prompt

@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     command_type: str = Field(default="generate", description="命令类型: generate|explain|find_table|find_code")
     session_id: Optional[str] = Field(default=None, description="会话ID，用于多轮对话")
     context: Optional[dict] = Field(default=None, description="上下文信息（表名/代码片段等）")
+    history: Optional[list] = Field(default=None, description="多轮对话历史: [{role, content}, ...]，由 Java 从 MySQL 读取传入")
 
 
 class KnowledgeItem(BaseModel):
