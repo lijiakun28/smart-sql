@@ -70,37 +70,68 @@ public class ChatController {
 
         StringBuilder fullContent = new StringBuilder();
         StringBuilder thinkingContent = new StringBuilder();
+        // 作业题1修复：保存标志，防止断开路径和正常完成路径重复保存
+        final boolean[] saved = {false};
 
         aiStream.subscribe(
-                chunk -> {
-                    try {
-                        emitter.send(SseEmitter.event().data(chunk));
-                        // 修复题7：解析 SSE JSON，只提取纯文本内容落库
-                        // 原实现直接把 JSON 原始串 append 进数据库（非纯文本也非合法 JSON）
-                        appendChunkContent(chunk, fullContent, thinkingContent, sessionId);
-                    } catch (Exception e) {
-                        // 客户端断开会触发，不阻塞其他 chunk
+                new org.reactivestreams.Subscriber<String>() {
+                    private org.reactivestreams.Subscription subscription;
+
+                    @Override
+                    public void onSubscribe(org.reactivestreams.Subscription s) {
+                        this.subscription = s;
+                        s.request(Long.MAX_VALUE);
                     }
-                },
-                error -> {
-                    try {
-                        emitter.send(SseEmitter.event()
-                                .data("{\"type\":\"error\",\"content\":\"" + error.getMessage() + "\"}"));
-                        emitter.complete();
-                    } catch (Exception ex) {
-                        emitter.completeWithError(ex);
+
+                    @Override
+                    public void onNext(String chunk) {
+                        try {
+                            emitter.send(SseEmitter.event().data(chunk));
+                            appendChunkContent(chunk, fullContent, thinkingContent, sessionId);
+                        } catch (Exception e) {
+                            // 作业题1修复：客户端断开（用户点停止）——
+                            // ① 取消上游订阅，停止从 Python 拉流（不再浪费 AI token）
+                            // ② 保存"用户实际看到的部分回答"（需求：展示到停止前已回答的内容）
+                            if (subscription != null) {
+                                subscription.cancel();
+                            }
+                            if (!saved[0] && fullContent.length() > 0) {
+                                saved[0] = true;
+                                chatService.saveAssistantMessage(sessionId,
+                                        fullContent.toString(),
+                                        thinkingContent.toString(),
+                                        commandType);
+                            }
+                            emitter.completeWithError(e);
+                        }
                     }
-                },
-                () -> {
-                    try {
-                        // 流结束，保存 AI 回复
-                        chatService.saveAssistantMessage(sessionId,
-                                fullContent.toString(),
-                                thinkingContent.toString(),
-                                commandType);
-                        emitter.complete();
-                    } catch (Exception e) {
-                        emitter.completeWithError(e);
+
+                    @Override
+                    public void onError(Throwable error) {
+                        try {
+                            emitter.send(SseEmitter.event()
+                                    .data("{\"type\":\"error\",\"content\":\"" + error.getMessage() + "\"}"));
+                            emitter.complete();
+                        } catch (Exception ex) {
+                            emitter.completeWithError(ex);
+                        }
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        try {
+                            // 流正常结束，保存完整 AI 回复
+                            if (!saved[0]) {
+                                saved[0] = true;
+                                chatService.saveAssistantMessage(sessionId,
+                                        fullContent.toString(),
+                                        thinkingContent.toString(),
+                                        commandType);
+                            }
+                            emitter.complete();
+                        } catch (Exception e) {
+                            emitter.completeWithError(e);
+                        }
                     }
                 }
         );
