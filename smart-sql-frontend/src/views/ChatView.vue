@@ -148,9 +148,11 @@ let abortController = null
 let streamingIndex = -1   // 作业题2修复：记录正在生成的 AI 消息索引，停止时使用
 let sessionRequestSeq = 0   // 作业题1修复：会话切换请求令牌，消除竞态
 
-/** 处理发送 */
-const handleSend = async () => {
-  const question = inputText.value.trim()
+/** 处理发送
+ * @param questionOverride 重新回答时传入原问题：跳过添加用户消息、不覆盖输入框
+ */
+const handleSend = async (questionOverride) => {
+  const question = (questionOverride || inputText.value).trim()
   if (!question || chatStore.isStreaming) return
 
   // 如果没有会话，自动创建
@@ -159,9 +161,12 @@ const handleSend = async () => {
     chatStore.setSession(sessionStore.currentId)
   }
 
-  // 添加用户消息
-  chatStore.addUserMessage(question)
-  inputText.value = ''
+  if (!questionOverride) {
+    // 正常发送：添加用户消息 + 清空输入框
+    chatStore.addUserMessage(question)
+    inputText.value = ''
+  }
+  // 重新回答（作业题1修复）：复用原问题，不重复落库用户消息、不覆盖输入框
   chatStore.setStreaming(true)
 
   // 添加 AI 消息壳
@@ -179,7 +184,9 @@ const handleSend = async () => {
       commandType: chatStore.commandType,
       context: chatStore.contextList.length > 0
         ? { items: chatStore.contextList }
-        : {}
+        : {},
+      // 重新回答标记：后端跳过重复保存用户消息
+      isRegenerate: !!questionOverride
     },
     // onMessage
     (data) => {
@@ -265,13 +272,12 @@ const handleFeedback = (index, type) => {
   ElMessage.success(type === 'like' ? '感谢您的点赞！' : '感谢您的反馈，我们会持续改进！')
 }
 
-/** 重新回答（Day 12：找到该 AI 回答对应的用户问题，重新发起提问） */
+/** 重新回答（作业题1修复：复用原问题直接发送，不重复落库、不覆盖输入框）
+ * 历史形态变为：用户X → AI旧 → AI新（一问多答，与 ChatGPT 语义一致） */
 const handleRegenerate = (aiMsgIndex) => {
-  // 向前找最近的 user 消息作为原始问题
   for (let i = aiMsgIndex - 1; i >= 0; i--) {
     if (chatStore.messages[i]?.role === 'user') {
-      inputText.value = chatStore.messages[i].content
-      handleSend()
+      handleSend(chatStore.messages[i].content)
       return
     }
   }

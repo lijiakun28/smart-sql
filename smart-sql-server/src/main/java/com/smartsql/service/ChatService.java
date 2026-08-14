@@ -35,7 +35,7 @@ public class ChatService {
      * @return SSE 流
      */
     public Flux<String> chatStream(Long sessionId, String question,
-                                    String commandType, Object context) {
+                                    String commandType, Object context, boolean isRegenerate) {
         // 0. 作业题3修复：校验会话有效性，防止消息被写入已删除的会话
         //    （message 表无外键约束，不做校验消息会静默落入 status=0 的会话）
         Session session = sessionService.getById(sessionId);
@@ -43,19 +43,21 @@ public class ChatService {
             return Flux.error(new IllegalArgumentException("会话不存在或已删除"));
         }
 
-        // 1. 保存用户消息
-        Message userMsg = new Message();
-        userMsg.setSessionId(sessionId);
-        userMsg.setRole("user");
-        userMsg.setContent(question);
-        userMsg.setCommandType(commandType);
-        userMsg.setContextJson(context != null ? context.toString() : null);
-        messageService.save(userMsg);
+        // 1. 保存用户消息（重新回答时跳过——一问多答语义，避免重复落库）
+        if (!isRegenerate) {
+            Message userMsg = new Message();
+            userMsg.setSessionId(sessionId);
+            userMsg.setRole("user");
+            userMsg.setContent(question);
+            userMsg.setCommandType(commandType);
+            userMsg.setContextJson(context != null ? context.toString() : null);
+            messageService.save(userMsg);
 
-        // 2. 首条消息自动命名
-        //    必须在保存用户消息之后调用：count==1 的判断依赖消息已入库
-        //    （验证测试发现的顺序 bug：原 Controller 在保存前调用，count 恒为 0）
-        updateSessionNameIfFirstMessage(sessionId, question);
+            // 2. 首条消息自动命名
+            //    必须在保存用户消息之后调用：count==1 的判断依赖消息已入库
+            //    （验证测试发现的顺序 bug：原 Controller 在保存前调用，count 恒为 0）
+            updateSessionNameIfFirstMessage(sessionId, question);
+        }
 
         // 3. 构建多轮对话历史（作业题2修复：SQL 层取最近6条，截断策略只在 Java 一处）
         List<Map<String, Object>> history = new java.util.ArrayList<>();

@@ -58,6 +58,8 @@ public class ChatController {
         String commandType = (String) body.getOrDefault("commandType", "generate");
         // 浏览器测试发现：前端 context 可能是数组或对象，不做强转直接透传给 Python
         Object context = body.get("context");
+        // 重新回答标记：跳过重复保存用户消息（作业题1修复，一问多答语义）
+        boolean isRegenerate = Boolean.TRUE.equals(body.get("isRegenerate"));
 
         // 注意：首条消息自动命名已移至 ChatService.chatStream 内部
         // （在保存用户消息之后执行，保证消息数判断正确）
@@ -66,7 +68,7 @@ public class ChatController {
         SseEmitter emitter = new SseEmitter(300_000L);
 
         // 调用 AI 引擎流
-        Flux<String> aiStream = chatService.chatStream(sessionId, question, commandType, context);
+        Flux<String> aiStream = chatService.chatStream(sessionId, question, commandType, context, isRegenerate);
 
         StringBuilder fullContent = new StringBuilder();
         StringBuilder thinkingContent = new StringBuilder();
