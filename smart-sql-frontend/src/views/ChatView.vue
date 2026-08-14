@@ -8,12 +8,19 @@
 
     <!-- 右侧问答区 -->
     <div class="chat-main">
-      <!-- 顶部：知识库入口 -->
+      <!-- 顶部：知识库入口 + 历史对话 -->
       <div class="chat-header">
-        <el-button type="text" @click="$router.push('/knowledge')">
-          <el-icon><FolderOpened /></el-icon> 知识库管理
-        </el-button>
+        <div class="header-left">
+          <el-button type="text" @click="$router.push('/knowledge')">
+            <el-icon><FolderOpened /></el-icon> 知识库管理
+          </el-button>
+        </div>
         <span class="header-title">智能SQL 问答助手</span>
+        <div class="header-right">
+          <el-button type="text" @click="showHistory = true">
+            <el-icon><Clock /></el-icon> 历史对话
+          </el-button>
+        </div>
       </div>
 
       <!-- 消息列表 -->
@@ -105,6 +112,13 @@
         @close="showContextSelector = false"
         @select="handleAddContext"
       />
+
+      <!-- 历史会话浮框 -->
+      <HistorySessions
+        v-if="showHistory"
+        @close="showHistory = false"
+        @open="handleOpenHistory"
+      />
     </div>
   </div>
 </template>
@@ -119,12 +133,14 @@ import { listMessages } from '@/api/session'
 import SessionPanel from '@/components/SessionPanel.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import ContextSelector from '@/components/ContextSelector.vue'
+import HistorySessions from '@/components/HistorySessions.vue'
 
 const chatStore = useChatStore()
 const sessionStore = useSessionStore()
 
 const inputText = ref('')
 const showContextSelector = ref(false)
+const showHistory = ref(false)
 const messagesContainer = ref(null)
 let abortController = null
 let streamingIndex = -1   // 作业题2修复：记录正在生成的 AI 消息索引，停止时使用
@@ -217,6 +233,12 @@ const handleCreateSession = async () => {
   inputText.value = ''
 }
 
+/** 打开历史会话（需求：支持继续对选中的会话进行问答） */
+const handleOpenHistory = async (sessionId) => {
+  showHistory.value = false
+  await handleSelectSession(sessionId)
+}
+
 /** 添加上下文 */
 const handleAddContext = (item) => {
   if (chatStore.contextList.length >= 20) {
@@ -261,6 +283,8 @@ const scrollToBottom = async () => {
   align-items: center;
   padding: 12px 20px;
   border-bottom: 1px solid #ebeef5;
+  .header-left, .header-right { min-width: 110px; }
+  .header-right { display: flex; justify-content: flex-end; }
   .header-title {
     font-size: 16px;
     font-weight: 600;
