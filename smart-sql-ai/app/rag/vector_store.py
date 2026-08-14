@@ -132,6 +132,12 @@ class VectorStoreManager:
         """获取向量库中条目数"""
         return self.collection.count()
 
+    def wipe(self):
+        """清空整个向量库（全量对账模式使用）"""
+        all_ids = self.collection.get()["ids"]
+        if all_ids:
+            self.collection.delete(ids=all_ids)
+
     def close(self):
         """关闭连接（ChromaDB PersistentClient 无需特殊关闭）"""
         pass

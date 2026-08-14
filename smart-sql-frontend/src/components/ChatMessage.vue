@@ -28,8 +28,39 @@
             </el-icon>
             <span>💭 思考过程</span>
           </div>
-          <pre v-if="showThinking" class="thinking-text">{{ message.thinking }}</pre>
+          <div v-if="showThinking">
+            <pre class="thinking-text">{{ message.thinking }}</pre>
+
+            <!-- Day 12：知识库引用（可点击查看详情，需求：每个知识库有序号+点击浮框展示只读页面） -->
+            <div v-if="message.sources && message.sources.length" class="knowledge-refs">
+              <div class="refs-title">📚 知识库引用</div>
+              <div
+                v-for="src in message.sources"
+                :key="src.index"
+                class="knowledge-ref"
+                @click="showKnowledgeDetail = src"
+              >
+                <el-tag size="small" type="info">[{{ src.index }}]</el-tag>
+                <span class="ref-name">{{ src.name }}</span>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- 知识详情浮框（只读） -->
+        <el-dialog
+          v-model="showKnowledgeDetail"
+          :title="'知识详情 - ' + (showKnowledgeDetail ? showKnowledgeDetail.name : '')"
+          width="520px"
+          append-to-body
+        >
+          <div class="knowledge-detail">
+            <p class="detail-label">业务描述</p>
+            <p class="detail-text">{{ showKnowledgeDetail ? (showKnowledgeDetail.description || '无') : '' }}</p>
+            <p v-if="showKnowledgeDetail && showKnowledgeDetail.sql" class="detail-label">SQL 逻辑</p>
+            <pre v-if="showKnowledgeDetail && showKnowledgeDetail.sql" class="detail-sql">{{ showKnowledgeDetail.sql }}</pre>
+          </div>
+        </el-dialog>
 
         <!-- SQL 代码（带高亮） -->
         <div class="sql-block" v-if="extractSql(message.content)">
@@ -56,6 +87,10 @@
           <el-button size="small" class="feedback-btn" @click="$emit('feedback', index, 'dislike')">
             <el-icon><ThumbDown /></el-icon> 没用
           </el-button>
+          <!-- Day 12：重新回答（需求：针对回答过的问题，再次进行回答） -->
+          <el-button size="small" class="feedback-btn" @click="$emit('regenerate', index)">
+            <el-icon><Refresh /></el-icon> 重新回答
+          </el-button>
         </div>
       </div>
     </div>
@@ -73,13 +108,15 @@ hljs.registerLanguage('sql', sql)
 
 /** 思考过程展开状态 */
 const showThinking = ref(false)
+/** 知识详情浮框数据 */
+const showKnowledgeDetail = ref(null)
 
 const props = defineProps({
   message: { type: Object, required: true },
   index: { type: Number, required: true }
 })
 
-defineEmits(['feedback'])
+defineEmits(['feedback', 'regenerate'])
 
 /** 命令类型标签 */
 const commandLabel = (type) => ({
@@ -215,6 +252,59 @@ const copySql = () => {
     background: #fafafa;
     padding: 10px;
     border-radius: 6px;
+  }
+}
+
+/* Day 12：知识库引用 */
+.knowledge-refs {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #f0f7ff;
+  border-radius: 6px;
+
+  .refs-title {
+    font-size: 12px;
+    color: #409eff;
+    margin-bottom: 6px;
+  }
+
+  .knowledge-ref {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 13px;
+
+    .ref-name {
+      color: #409eff;
+      text-decoration: underline;
+      &:hover { color: #337ecc; }
+    }
+  }
+}
+
+/* 知识详情浮框 */
+.knowledge-detail {
+  .detail-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #606266;
+    margin-bottom: 4px;
+  }
+  .detail-text {
+    font-size: 13px;
+    color: #303133;
+    line-height: 1.8;
+    margin-bottom: 12px;
+  }
+  .detail-sql {
+    background: #f5f7fa;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 }
 
