@@ -73,7 +73,8 @@ def format_history(history) -> str:
         return "（无历史对话，这是第一轮提问）"
 
     lines = []
-    for msg in history[-6:]:  # 最多保留最近6条（3轮问答）
+    # 作业题2修复：截断策略只在 Java 侧（数据拥有者），Python 收到什么格式化什么
+    for msg in history:
         role = "用户" if msg.get("role") == "user" else "AI"
         content = str(msg.get("content", ""))[:500]  # 每条截断500字，防历史膨胀
         lines.append(f"{role}：{content}")

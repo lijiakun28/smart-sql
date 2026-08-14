@@ -57,17 +57,13 @@ public class ChatService {
         //    （验证测试发现的顺序 bug：原 Controller 在保存前调用，count 恒为 0）
         updateSessionNameIfFirstMessage(sessionId, question);
 
-        // 3. 构建多轮对话历史（Day 11：取最近6条消息，含刚保存的用户消息）
+        // 3. 构建多轮对话历史（作业题2修复：SQL 层取最近6条，截断策略只在 Java 一处）
         List<Map<String, Object>> history = new java.util.ArrayList<>();
-        for (Message msg : messageService.listBySession(sessionId)) {
+        for (Message msg : messageService.listRecentBySession(sessionId, 6)) {
             Map<String, Object> item = new java.util.LinkedHashMap<>();
             item.put("role", msg.getRole());
             item.put("content", msg.getContent());
             history.add(item);
-        }
-        // 只保留最近6条（3轮问答），防止历史过长
-        if (history.size() > 6) {
-            history = history.subList(history.size() - 6, history.size());
         }
 
         // 4. 调用 AI 引擎，返回流
