@@ -81,19 +81,26 @@ const commandLabel = (type) => ({
   find_code: '快捷找代码'
 }[type] || type)
 
-/** SQL 代码块正则（作业题4修复：忽略大小写 + 允许空格，提取与删除共用一份） */
-const SQL_BLOCK_PATTERN = /```\s*sql\s*([\s\S]*?)```/gi
+/**
+ * SQL 代码块正则（作业题4修复：忽略大小写 + 允许空格）
+ * ⚠️ 提取与删除必须用不同标志：
+ *   - match()[1] 取捕获组需要【无 g 标志】（带 g 时 match 只返回完整匹配数组）
+ *   - replace 删除全部代码块需要【g 标志】
+ * 浏览器实测发现：共用带 g 的正则导致 match[1] === undefined，SQL 永不渲染
+ */
+const SQL_BLOCK_EXTRACT = /```\s*sql\s*([\s\S]*?)```/i
+const SQL_BLOCK_REMOVE_ALL = /```\s*sql\s*[\s\S]*?```/gi
 
 /** 提取 SQL 代码块 */
 const extractSql = (content) => {
   if (!content) return ''
-  const match = content.match(SQL_BLOCK_PATTERN)
+  const match = content.match(SQL_BLOCK_EXTRACT)
   return match ? match[1] : ''
 }
 
 /** 去掉 SQL 代码块，返回纯文本 */
 const stripSqlBlock = (content) => {
-  return (content || '').replace(SQL_BLOCK_PATTERN, '').trim()
+  return (content || '').replace(SQL_BLOCK_REMOVE_ALL, '').trim()
 }
 
 /** SQL 高亮 */

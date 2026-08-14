@@ -52,7 +52,7 @@ public class AiProxyService {
      * @param context     上下文信息
      * @return Flux<String> 流式响应
      */
-    public Flux<String> chatStream(String question, String commandType, Map<String, Object> context) {
+    public Flux<String> chatStream(String question, String commandType, Object context) {
         Map<String, Object> requestBody = Map.of(
                 "question", question,
                 "command_type", commandType != null ? commandType : "generate",
@@ -71,7 +71,7 @@ public class AiProxyService {
     /**
      * 非流式调用 AI 引擎
      */
-    public String chatSync(String question, String commandType, Map<String, Object> context) {
+    public String chatSync(String question, String commandType, Object context) {
         Map<String, Object> requestBody = Map.of(
                 "question", question,
                 "command_type", commandType != null ? commandType : "generate",

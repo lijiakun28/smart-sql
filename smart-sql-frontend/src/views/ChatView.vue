@@ -152,12 +152,15 @@ const handleSend = async () => {
   await scrollToBottom()
 
   // 发送 SSE 请求
+  // 浏览器测试修复：context 必须传对象（后端/Python 期望 dict），不能传数组
   abortController = chatStream(
     chatStore.currentSessionId,
     {
       question,
       commandType: chatStore.commandType,
-      context: chatStore.contextList
+      context: chatStore.contextList.length > 0
+        ? { items: chatStore.contextList }
+        : {}
     },
     // onMessage
     (data) => {
