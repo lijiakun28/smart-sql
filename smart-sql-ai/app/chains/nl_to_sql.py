@@ -57,6 +57,37 @@ USER_PROMPT = """用户问题：{question}
 请生成对应的 SQL 查询语句："""
 
 
+def format_context(context) -> str:
+    """
+    作业题2修复：把结构化上下文 {items: [...]} 格式化成 AI 友好文本
+
+    之前直接 json.dumps 把原始 JSON 塞进 Prompt——键名和括号全是 token 噪音，
+    AI 还要自己解析 JSON 结构。现在在离 Prompt 最近的一层格式化成可读文本：
+    - 术语：- 术语【名称】：描述
+    - 口径：- 口径【名称】的SQL：xxx
+
+    分层原则：API 边界保持结构化（可扩展），Prompt 构建层负责格式化（可定制）。
+    """
+    if not context or not isinstance(context, dict):
+        return "无"
+
+    items = context.get("items", [])
+    if not items:
+        return "无"
+
+    lines = []
+    for item in items:
+        name = item.get("name", "未知")
+        item_type = item.get("type", "")
+        if item_type == "caliber" and item.get("sql"):
+            lines.append(f"- 口径【{name}】的SQL：{item['sql']}")
+        elif item_type == "caliber":
+            lines.append(f"- 口径【{name}】：{item.get('description', '')}")
+        else:
+            lines.append(f"- 术语【{name}】：{item.get('description', '')}")
+    return "\n".join(lines)
+
+
 def build_sql_generation_chain(knowledge_texts: list = None):
     """
     构建 NL→SQL 生成链
@@ -107,7 +138,7 @@ def build_sql_generation_chain(knowledge_texts: list = None):
     chain = (
         {
             "question": lambda x: x["question"],
-            "context": lambda x: x.get("context", "无"),
+            "context": lambda x: format_context(x.get("context")),
             "knowledge_context": lambda _: knowledge_context,
         }
         | prompt
