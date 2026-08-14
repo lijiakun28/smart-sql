@@ -414,6 +414,39 @@
 
 ---
 
+## Day 11（多轮对话记忆）✅
+
+### 核心成果：多轮对话记忆打通
+
+**架构决策**：Java 传历史（无状态）而非 LangChain 进程内 Memory。
+
+| 方案 | 状态 | 重启 | 多实例 | 结论 |
+|------|------|------|--------|------|
+| LangChain ConversationBufferMemory | 进程内 | 丢失 | 不共享 | 1.x 已废弃 |
+| **Java 从 MySQL 读历史传入** | 无状态 | 不丢 | 可共享 | ✅ 采用 |
+
+**实现**：
+- Java ChatService：从 MySQL 读最近 6 条消息（3 轮），构建 [{role, content}] 传 Python
+- Python format_history：格式化为"用户：xxx / AI：xxx"注入 Prompt，每条截断 500 字防膨胀
+- Prompt 增加修改语义提示："如果用户问题是对历史回答的修改，请基于最近的 SQL 修改"
+
+**验证（对比实验）**：
+```
+第一轮: 统计当日5G套网到达数
+  → SELECT COUNT(DISTINCT user_id) FROM dwd_5g_user_info WHERE p_day...
+
+第二轮(追问): 加一个地市分组维度
+  → 保留原表+原过滤, 添加 city AS city_name + GROUP BY city ✅
+  → 防幻觉规则仍生效(假设标注) ✅
+```
+
+### 学到的
+1. **Memory 的本质**：不是魔法，是"把历史消息塞进下一次请求的 Prompt"——我们选择让 Java（数据拥有者）负责收集历史，比框架内置 Memory 更契合三层架构
+2. **历史截断策略**：最多 6 条 + 每条 500 字，防止 token 膨胀（和题 2 的上下文格式化一个道理）
+3. 面试可以主动讲"为什么不用 LangChain Memory"——选型有理由比会用框架更值钱
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）
