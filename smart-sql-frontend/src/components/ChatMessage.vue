@@ -38,7 +38,7 @@
                 v-for="src in message.sources"
                 :key="src.index"
                 class="knowledge-ref"
-                @click="showKnowledgeDetail = src"
+                @click="openKnowledgeDetail(src)"
               >
                 <el-tag size="small" type="info">[{{ src.index }}]</el-tag>
                 <span class="ref-name">{{ src.name }}</span>
@@ -47,18 +47,18 @@
           </div>
         </div>
 
-        <!-- 知识详情浮框（只读） -->
+        <!-- 知识详情浮框（作业题2修复：布尔管开关、对象管数据，两个变量单一语义） -->
         <el-dialog
-          v-model="showKnowledgeDetail"
-          :title="'知识详情 - ' + (showKnowledgeDetail ? showKnowledgeDetail.name : '')"
+          v-model="knowledgeDialogVisible"
+          :title="'知识详情 - ' + (currentKnowledge ? currentKnowledge.name : '')"
           width="520px"
           append-to-body
         >
           <div class="knowledge-detail">
             <p class="detail-label">业务描述</p>
-            <p class="detail-text">{{ showKnowledgeDetail ? (showKnowledgeDetail.description || '无') : '' }}</p>
-            <p v-if="showKnowledgeDetail && showKnowledgeDetail.sql" class="detail-label">SQL 逻辑</p>
-            <pre v-if="showKnowledgeDetail && showKnowledgeDetail.sql" class="detail-sql">{{ showKnowledgeDetail.sql }}</pre>
+            <p class="detail-text">{{ currentKnowledge ? (currentKnowledge.description || '无') : '' }}</p>
+            <p v-if="currentKnowledge && currentKnowledge.sql" class="detail-label">SQL 逻辑</p>
+            <pre v-if="currentKnowledge && currentKnowledge.sql" class="detail-sql">{{ currentKnowledge.sql }}</pre>
           </div>
         </el-dialog>
 
@@ -108,8 +108,15 @@ hljs.registerLanguage('sql', sql)
 
 /** 思考过程展开状态 */
 const showThinking = ref(false)
-/** 知识详情浮框数据 */
-const showKnowledgeDetail = ref(null)
+/** 知识详情浮框（作业题2修复：拆分状态，布尔管开关、对象管数据） */
+const knowledgeDialogVisible = ref(false)
+const currentKnowledge = ref(null)
+
+/** 打开知识详情 */
+const openKnowledgeDetail = (src) => {
+  currentKnowledge.value = src
+  knowledgeDialogVisible.value = true
+}
 
 const props = defineProps({
   message: { type: Object, required: true },
