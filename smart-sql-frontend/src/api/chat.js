@@ -34,9 +34,11 @@ export function chatStream(sessionId, body, onMessage, onError, onComplete) {
         buffer = lines.pop() // 保留不完整部分
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          // 浏览器实测修复：Spring SseEmitter 输出 "data:{json}"（无空格），
+          // 标准 SSE 是 "data: {json}"（有空格）——两种都要兼容
+          if (line.startsWith('data:')) {
             try {
-              const data = JSON.parse(line.slice(6))
+              const data = JSON.parse(line.slice(5).trim())
               onMessage(data)
             } catch (e) {
               // 忽略解析错误

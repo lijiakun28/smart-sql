@@ -56,8 +56,8 @@ public class ChatController {
     public SseEmitter chat(@PathVariable Long sessionId, @RequestBody Map<String, Object> body) {
         String question = (String) body.get("question");
         String commandType = (String) body.getOrDefault("commandType", "generate");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> context = (Map<String, Object>) body.get("context");
+        // 浏览器测试发现：前端 context 可能是数组或对象，不做强转直接透传给 Python
+        Object context = body.get("context");
 
         // 注意：首条消息自动命名已移至 ChatService.chatStream 内部
         // （在保存用户消息之后执行，保证消息数判断正确）

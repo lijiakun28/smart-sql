@@ -33,7 +33,7 @@ public class ChatService {
      * @return SSE 流
      */
     public Flux<String> chatStream(Long sessionId, String question,
-                                    String commandType, Map<String, Object> context) {
+                                    String commandType, Object context) {
         // 1. 保存用户消息
         Message userMsg = new Message();
         userMsg.setSessionId(sessionId);
