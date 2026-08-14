@@ -42,6 +42,7 @@
           :message="msg"
           :index="index"
           @feedback="handleFeedback"
+          @regenerate="handleRegenerate"
         />
       </div>
 
@@ -187,6 +188,8 @@ const handleSend = async () => {
         scrollToBottom()
       } else if (data.type === 'thinking') {
         chatStore.appendThinking(aiMsgIndex, data.content)
+      } else if (data.type === 'knowledge') {
+        chatStore.appendKnowledge(aiMsgIndex, data)
       } else if (data.type === 'done') {
         chatStore.finishStreaming(aiMsgIndex)
       } else if (data.type === 'error') {
@@ -260,6 +263,19 @@ const handleAddContext = (item) => {
 /** 反馈 */
 const handleFeedback = (index, type) => {
   ElMessage.success(type === 'like' ? '感谢您的点赞！' : '感谢您的反馈，我们会持续改进！')
+}
+
+/** 重新回答（Day 12：找到该 AI 回答对应的用户问题，重新发起提问） */
+const handleRegenerate = (aiMsgIndex) => {
+  // 向前找最近的 user 消息作为原始问题
+  for (let i = aiMsgIndex - 1; i >= 0; i--) {
+    if (chatStore.messages[i]?.role === 'user') {
+      inputText.value = chatStore.messages[i].content
+      handleSend()
+      return
+    }
+  }
+  ElMessage.warning('未找到可重新回答的问题')
 }
 
 /** 滚动到底部

@@ -128,10 +128,16 @@ def verify_search(query):
     return results
 
 
-def main():
+def main(full_sync=False):
     print("=" * 50)
-    print("知识库同步: MySQL → ChromaDB")
+    print("知识库同步: MySQL → ChromaDB" + (" (全量对账模式)" if full_sync else ""))
     print("=" * 50)
+
+    # 全量对账：清空向量库后从 MySQL 重建（清理历史垃圾数据）
+    if full_sync:
+        vs = VectorStoreManager()
+        vs.wipe()   # wipe 是同步方法，直接调用
+        print(f"\n[全量] 向量库已清空")
 
     # 1. 读取 MySQL
     items = read_mysql_knowledge()
@@ -154,9 +160,12 @@ def main():
 
 
 if __name__ == "__main__":
+    # --full: 全量对账模式（清空向量库后从 MySQL 重建，清理历史垃圾数据）
+    full_sync = "--full" in sys.argv
+
     # 异常处理 + 退出码：脚本将来会被 Java/CI 调用，退出码是调用方判断成败的依据
     try:
-        main()
+        main(full_sync=full_sync)
     except pymysql.MySQLError as e:
         print(f"\n[FAIL] MySQL 连接/查询失败: {e}")
         print("提示: 检查 MySQL 服务是否运行、MYSQL_PASSWORD 是否正确")
