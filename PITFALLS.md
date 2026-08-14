@@ -200,6 +200,34 @@
 
 ---
 
+## Day 6 补充（真实浏览器驱动测试，agent-browser + Edge）
+
+### 坑 28：SCSS 编译器缺失导致整页不渲染
+- **现象**：页面报 `Preprocessor dependency "sass-embedded" not found`，界面空白无按钮
+- **原因**：组件用了 `<style lang="scss">` 但 package.json 从未安装 SCSS 编译器（Day 1 建骨架时漏装，且之前的验证只用 curl 检查了 JS 编译，没检查 CSS 编译路径）
+- **解决**：`npm install -D sass-embedded`
+- **教训**：**curl 验证页面 ≠ 浏览器验证页面**。Vite 按需编译，curl 一个 URL 只触发该模块编译；浏览器加载整棵树才会暴露全部依赖缺口。项目 skill 应记录"启动前必须装 sass"
+
+### 坑 29：前端与后端 context 类型不匹配（ClassCastException）
+- **现象**：浏览器发问后 Java 抛 `ArrayList cannot be cast to Map`（ChatController line 60）
+- **原因**：前端 `context: chatStore.contextList`（数组），Java 强转 `(Map<String, Object>)`。之前的 Python 测试脚本都传 `{}`（对象），掩盖了真实前端的请求形状
+- **解决**：Java 端改 `Object context` 透传；前端规范化为 `{ items: [...] }`
+- **教训**：**测试脚本的请求形状要忠实于真实客户端**——用 Python 验证 Java 接口时，请求体必须模拟浏览器的真实格式，否则"假阳性"通过
+
+### 坑 30：Spring SseEmitter 与前端 SSE 解析器的格式差异
+- **现象**：后端正常落库、thinking 也不渲染——流式数据被前端静默丢弃
+- **原因**：Spring `SseEmitter.event().data()` 输出 `data:{json}`（冒号后**无空格**）；前端解析检查 `startsWith('data: ')`（**有空格**）。永不匹配，无报错
+- **解决**：`line.startsWith('data:')` + `slice(5).trim()` 兼容两种格式
+- **教训**：SSE 格式的"冒号后空格"是可选细节，不同实现不同写法（Python 手写 `data: `有空格，Spring 无空格）。**跨语言协议对接处，先看两边实际字节**
+
+### 坑 31：正则 g 标志的 match() 陷阱（作业修复的次生 bug）
+- **现象**：SQL 代码块在浏览器中永不渲染，但 thinking 正常
+- **原因**：作业题4修复时把提取/删除共用带 `g` 的正则。`str.match(/re/g)` 只返回完整匹配数组、**不含捕获组**，`match[1]` 是 undefined → extractSql 永远失败
+- **解决**：提取用无 `g` 正则（取捕获组），删除用带 `g` 正则（replace 全部），两个正则分开
+- **教训**：① `match` 带 g 无捕获组是 JS 经典陷阱 ② **修复的修复**——每次修复都可能引入次生 bug，浏览器实测是发现它们的唯一可靠手段
+
+---
+
 ## 通用经验总结
 
 | 类别 | 经验 |
