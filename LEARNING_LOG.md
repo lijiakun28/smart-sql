@@ -236,6 +236,37 @@
 
 ---
 
+## Day 6 作业（前端代码改进与漏洞排查 4 题，总分 85）
+
+### 题 1：XSS 漏洞 — 98 分 ⭐
+**代码来源**：`smart-sql-frontend/src/components/ChatMessage.vue`（renderedText + v-html）
+**我的回答**：v-html 原样插入 DOM，onerror 触发 JS 执行；攻击向量含用户输入和 prompt injection 诱导 AI 输出恶意内容；修法=v-text + CSS 换行。
+**点评**：攻击链+双向量（用户输入+prompt injection）完整。补充：同文件 SQL 高亮区 v-html 碰巧安全（highlight.js 默认 HTML 转义）——"碰巧安全≠设计安全"。
+**已修复** ✅：v-text + white-space: pre-wrap
+
+### 题 2：停止按钮缺失 — 70 分
+**代码来源**：`ChatView.vue`（abortController 闲置）、`api/chat.js`（chatStream 返回 controller）
+**我的回答**：abort() 从未调用；"很可能"signal 没传给 fetch；需补停止按钮 UI。
+**点评**：核心事实正确，但"signal 没传"是推测且错误（chat.js 第 7 行 signal: controller.signal 传了）。教训：**能读到的结论不要猜**。
+**已修复** ✅：handleStop + streamingIndex 追踪 + isStreaming 条件按钮
+
+### 题 3：动态 import 坏味道 — 85 分
+**代码来源**：`api/chat.js`（updateFeedback 内 import('./request')）
+**我的回答**：每次调用产生模块加载/异步微任务开销；破坏静态分析；修法=顶部静态导入。
+**点评**：识别正确。补充两个观察：①函数放错文件（消息反馈 API 应归 message/session 类文件）②动态 import 的正当场景是代码分割/循环依赖应急，10 行模块不沾边。
+**已修复** ✅：顶部静态导入
+
+### 题 4：正则健壮性 — 88 分
+**代码来源**：`ChatMessage.vue`（extractSql 与 renderedText 两处正则）
+**我的回答**：i 修饰符忽略大小写 + \s* 允许空格。
+**点评**：方向全对。漏了关键点：同文件 renderedText 的删除正则也有同款问题——只改提取不改删除会"提取到了但没删掉"内容重复。同类逻辑必须同步修改。
+**已修复** ✅：SQL_BLOCK_PATTERN 共享常量（/```\s*sql\s*([\s\S]*?)```/gi），提取与删除共用
+
+### 作业模式总结
+今日最大收获：**能读到的结论不要猜**（题2 的推测错误）。
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）

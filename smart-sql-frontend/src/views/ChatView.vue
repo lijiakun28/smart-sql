@@ -86,6 +86,16 @@
           >
             <el-icon><Promotion /></el-icon> 发送
           </el-button>
+
+          <!-- 作业题2修复：生成中显示停止按钮 -->
+          <el-button
+            v-if="chatStore.isStreaming"
+            type="danger"
+            @click="handleStop"
+            class="send-btn"
+          >
+            <el-icon><VideoPause /></el-icon> 停止
+          </el-button>
         </div>
       </div>
 
@@ -117,6 +127,7 @@ const inputText = ref('')
 const showContextSelector = ref(false)
 const messagesContainer = ref(null)
 let abortController = null
+let streamingIndex = -1   // 作业题2修复：记录正在生成的 AI 消息索引，停止时使用
 
 /** 处理发送 */
 const handleSend = async () => {
@@ -136,6 +147,7 @@ const handleSend = async () => {
 
   // 添加 AI 消息壳
   const aiMsgIndex = chatStore.addAssistantMessage()
+  streamingIndex = aiMsgIndex
 
   await scrollToBottom()
 
@@ -169,8 +181,21 @@ const handleSend = async () => {
     // onComplete
     () => {
       chatStore.finishStreaming(aiMsgIndex)
+      streamingIndex = -1
     }
   )
+}
+
+/** 停止生成（作业题2修复：调用 AbortController.abort() 真正中断请求） */
+const handleStop = () => {
+  if (abortController) {
+    abortController.abort()   // 中断 fetch 流（AbortError 不会触发 onError 的报错分支）
+    abortController = null
+  }
+  if (streamingIndex >= 0) {
+    chatStore.stopStreaming(streamingIndex)
+    streamingIndex = -1
+  }
 }
 
 /** 选择会话 */
