@@ -42,12 +42,12 @@
               <el-button
                 v-if="row.status !== 'active'"
                 size="small" text type="success"
-                @click="changeTermStatus(row.id, 'active')"
+                @click="handleTermStatusChange(row.id, 'active')"
               >生效</el-button>
               <el-button
                 v-if="row.status === 'active'"
                 size="small" text type="warning"
-                @click="changeTermStatus(row.id, 'inactive')"
+                @click="handleTermStatusChange(row.id, 'inactive')"
               >失效</el-button>
               <el-button
                 size="small" text type="danger"
@@ -100,12 +100,12 @@
               <el-button
                 v-if="row.status !== 'active'"
                 size="small" text type="success"
-                @click="changeCaliberStatus(row.id, 'active')"
+                @click="handleCaliberStatusChange(row.id, 'active')"
               >生效</el-button>
               <el-button
                 v-if="row.status === 'active'"
                 size="small" text type="warning"
-                @click="changeCaliberStatus(row.id, 'inactive')"
+                @click="handleCaliberStatusChange(row.id, 'inactive')"
               >失效</el-button>
               <el-button
                 size="small" text type="danger"
@@ -242,6 +242,13 @@ const handleDeleteTerm = async (row) => {
   loadTerms()
 }
 
+/** 状态变更（浏览器实测修复：原模板直接调 API 函数，成功后不刷新列表） */
+const handleTermStatusChange = async (id, status) => {
+  await changeTermStatus(id, status)
+  ElMessage.success(status === 'active' ? '已生效' : '已失效')
+  loadTerms()
+}
+
 // ─── 口径库 CRUD ───
 const loadCalibers = async () => {
   caliberLoading.value = true
@@ -273,6 +280,13 @@ const handleDeleteCaliber = async (row) => {
   await ElMessageBox.confirm('删除当前知识，将会影响智能SQL回答问题的准确性，确认删除吗？', '确认删除', { type: 'warning' })
   await deleteCaliber(row.id)
   ElMessage.success('已删除')
+  loadCalibers()
+}
+
+/** 状态变更（浏览器实测修复：同术语库问题） */
+const handleCaliberStatusChange = async (id, status) => {
+  await changeCaliberStatus(id, status)
+  ElMessage.success(status === 'active' ? '已生效' : '已失效')
   loadCalibers()
 }
 
