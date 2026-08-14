@@ -395,6 +395,25 @@
 
 ---
 
+## Day 10 作业（上下文管理 2 题）
+
+### 题 1：已添加条目置灰（需求未实现）— 讲解题
+**代码来源**：`ContextSelector.vue`（无已添加状态）、`ChatView.vue`（handleAddContext 静默去重）
+**我的回答**：不知道。
+**讲解**：需求原文"条目上的添加按钮变为灰色"。子组件要知道哪些已添加 → props 向下传 selectedIds，条目按 isAdded 显示"已添加"标签+置灰，不再 emit select。组件通信优先级：props 向下、事件向上，状态单一来源。
+**已修复** ✅：selectedIds prop + 置灰样式 + 已添加标签
+
+### 题 2：上下文 JSON 直塞 Prompt — 95 分 ⭐
+**代码来源**：`ChatView.vue`（context: {items}）、`nl_to_sql.py`（json.dumps 直塞）
+**我的回答**：AI 看到原始 JSON；问题=token 浪费（键名/括号噪音）+信息噪音（被迫解析 JSON）+20条膨胀；方案=前端预处理为文本。
+**点评**：分析满分。架构 nuance：格式化应放 Python 侧（Prompt 构建是 AI 引擎职责，API 边界保持结构化）。金句："前端不懂 Prompt，Prompt 不懂 API。"
+**已修复** ✅：Python 侧 format_context（术语一行/口径带 SQL）
+
+### 主题总结
+**分层原则**：数据在边界处保持结构化（可扩展），在消费处格式化（可定制）。前端、API、Prompt 各司其职。
+
+---
+
 ## 简历素材积累
 
 ### 项目总述（面试 30 秒版）

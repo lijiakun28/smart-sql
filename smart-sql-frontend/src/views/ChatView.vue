@@ -106,9 +106,10 @@
         </div>
       </div>
 
-      <!-- 上下文选择弹窗 -->
+      <!-- 上下文选择弹窗（作业题1修复：传 selectedIds 供子组件置灰已添加条目） -->
       <ContextSelector
         v-if="showContextSelector"
+        :selectedIds="chatStore.contextList.map(c => c.id)"
         @close="showContextSelector = false"
         @select="handleAddContext"
       />

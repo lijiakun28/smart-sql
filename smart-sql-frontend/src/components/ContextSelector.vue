@@ -23,14 +23,16 @@
             </template>
           </el-input>
           <div class="result-list">
+            <!-- 作业题1修复：已添加的条目置灰并显示"已添加"，点击不再触发选择 -->
             <div
               v-for="item in tableResults"
               :key="item.id"
-              class="result-item"
-              @click="$emit('select', item)"
+              :class="['result-item', { added: isAdded(item.id) }]"
+              @click="handleItemClick(item)"
             >
               <span>{{ item.name }}</span>
-              <el-icon><Plus /></el-icon>
+              <el-icon v-if="!isAdded(item.id)"><Plus /></el-icon>
+              <el-tag v-else size="small" type="info">已添加</el-tag>
             </div>
             <el-empty v-if="tableResults.length === 0 && tableSearched" description="未找到匹配表" />
           </div>
@@ -53,11 +55,12 @@
             <div
               v-for="item in codeResults"
               :key="item.id"
-              class="result-item"
-              @click="$emit('select', item)"
+              :class="['result-item', { added: isAdded(item.id) }]"
+              @click="handleItemClick(item)"
             >
               <span>{{ item.name }}</span>
-              <el-icon><Plus /></el-icon>
+              <el-icon v-if="!isAdded(item.id)"><Plus /></el-icon>
+              <el-tag v-else size="small" type="info">已添加</el-tag>
             </div>
             <el-empty v-if="codeResults.length === 0 && codeSearched" description="未找到匹配代码" />
           </div>
@@ -71,7 +74,22 @@
 import { ref } from 'vue'
 import { searchKnowledge } from '@/api/knowledge'
 
-defineEmits(['close', 'select'])
+const props = defineProps({
+  // 作业题1修复：父组件传入已添加的 id 列表，用于置灰展示
+  selectedIds: { type: Array, default: () => [] }
+})
+
+const emit = defineEmits(['close', 'select'])
+
+/** 判断条目是否已添加 */
+const isAdded = (id) => props.selectedIds.includes(id)
+
+/** 点击条目：已添加的不再触发选择 */
+const handleItemClick = (item) => {
+  if (!isAdded(item.id)) {
+    emit('select', item)
+  }
+}
 
 const activeTab = ref('table')
 const tableKeyword = ref('')
@@ -142,5 +160,12 @@ const searchCode = async () => {
   cursor: pointer;
   border-radius: 6px;
   &:hover { background: #f0f5ff; }
+
+  /* 作业题1修复：已添加条目置灰（需求原文"条目上的添加按钮变为灰色"） */
+  &.added {
+    color: #c0c4cc;
+    cursor: not-allowed;
+    &:hover { background: transparent; }
+  }
 }
 </style>
