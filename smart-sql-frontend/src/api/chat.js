@@ -1,3 +1,5 @@
+import request from './request'
+
 /**
  * SSE 流式问答
  *
@@ -53,6 +55,6 @@ export function chatStream(sessionId, body, onMessage, onError, onComplete) {
   return controller
 }
 
-/** 更新消息反馈 */
+/** 更新消息反馈（作业题3修复：顶部静态导入，去掉无理由的动态 import） */
 export const updateFeedback = (messageId, feedback) =>
-  import('./request').then(m => m.default.put(`/messages/${messageId}/feedback`, null, { params: { feedback } }))
+  request.put(`/messages/${messageId}/feedback`, null, { params: { feedback } })
