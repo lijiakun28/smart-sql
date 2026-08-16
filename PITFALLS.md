@@ -266,6 +266,18 @@
 - **解决**：isRegenerate 标志贯通前端→Java，跳过重复保存用户消息；历史变为一问多答（与 ChatGPT 语义一致）
 - **教训**：**修复方案要考虑审计/日志约束**——"删掉重来"经常违反数据保留要求；"追加替代"更安全
 
+### 坑 38：中文输入法 Enter 键误触发（Day 14 用户反馈）
+- **现象**：手动敲字（中文）后按 Enter 发送无反应，但点发送按钮能发
+- **原因**：`@keydown.enter.exact` 在中文输入法**组词确认**（选候选词）时也触发——此时 `e.isComposing=true`，组词文本还没提交进 v-model，`handleSend` 读到空字符串静默 return
+- **解决**：handleEnterKey 中检查 `e.isComposing`，组词中的 Enter 不触发发送
+- **教训**：**中文应用的前端事件处理必须考虑 IME 状态**——Enter/Tab/上下键等都会在组词时触发。`isComposing` 是过滤输入法中间态的标准手段。测试时用真实中文输入法敲一遍，自动化工具模拟不了 IME
+
+### 坑 39：IDEA 直接打开 index.html 白屏（Day 14 用户反馈）
+- **现象**：从 IDEA 打开 index.html，Edge 访问 localhost:63342 空白页面；localhost:5173 内容完整
+- **原因**：63342 是 IDEA 内置**静态服务器**，只返回原始 HTML——不运行 Vite 的模块打包/SCSS 编译/API 代理。`<script type="module" src="/src/main.js">` 在静态服务器下无法解析
+- **解决**：Vue/Vite 项目必须通过 `npm run dev` 启动的 5173 端口访问，永远不要直接打开 index.html
+- **教训**：**SPA 的"页面"是构建产物不是源文件**——index.html 只是入口壳，内容靠 dev server 动态编译。此坑与坑 28（SCSS 缺失）同族：把前端当静态站点理解
+
 ---
 
 ## 通用经验总结
