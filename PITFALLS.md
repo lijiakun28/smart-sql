@@ -278,6 +278,12 @@
 - **解决**：Vue/Vite 项目必须通过 `npm run dev` 启动的 5173 端口访问，永远不要直接打开 index.html
 - **教训**：**SPA 的"页面"是构建产物不是源文件**——index.html 只是入口壳，内容靠 dev server 动态编译。此坑与坑 28（SCSS 缺失）同族：把前端当静态站点理解
 
+### 坑 40：Vue 模板事件对象污染函数参数（Day 14 用户反馈，作业修复的次生 bug）
+- **现象**：输入框打字后点击"发送"按钮无反应；回车发送正常
+- **原因**：Day12 作业修复给 `handleSend` 增加了 `questionOverride` 参数，但模板 `@click="handleSend"` 会自动把 **MouseEvent** 作为第一个参数传入——`(questionOverride || inputText.value).trim()` 抛 `TypeError: .trim is not a function`。回车键走 `handleEnterKey`（不传参）所以正常，点击按钮必现
+- **解决**：双保险——模板显式 `@click="handleSend()"` 不传事件 + 函数内 `typeof questionOverride === 'string'` 防御判断
+- **教训**：① **Vue 模板 `@click="fn"` 会传事件对象**，给函数加参数时必须同步改模板绑定 ② 作业修复引入的次生 bug（第二次了，见坑 31）——修复后必须回归原功能路径 ③ 排查"点击没反应"用 `window.addEventListener('error'/'unhandledrejection')` 捕获静默异常最快
+
 ---
 
 ## 通用经验总结
