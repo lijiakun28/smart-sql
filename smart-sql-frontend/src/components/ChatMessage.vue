@@ -228,7 +228,12 @@ const copySql = () => {
     padding: 16px;
     margin: 0;
     overflow-x: auto;
-    code { font-size: 13px; }
+    code {
+      font-size: 13px;
+      /* 基础色设为白色：highlight.js 只给关键字上色，
+         表名/列名/条件等标识符继承此颜色，深色背景上清晰可读 */
+      color: #ffffff;
+    }
   }
 }
 
