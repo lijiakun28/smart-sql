@@ -84,7 +84,7 @@
             placeholder="请直接输入要提问的问题，亦可先输入 / 指定需要我完成的任务类型。"
             :maxlength="99999"
             show-word-limit
-            @keydown.enter.exact="handleSend"
+            @keydown.enter.exact="handleEnterKey"
           />
           <el-button
             type="primary"
@@ -147,6 +147,14 @@ const messagesContainer = ref(null)
 let abortController = null
 let streamingIndex = -1   // 作业题2修复：记录正在生成的 AI 消息索引，停止时使用
 let sessionRequestSeq = 0   // 作业题1修复：会话切换请求令牌，消除竞态
+
+/** 回车发送（用户反馈修复：中文输入法组词中按 Enter 确认候选词也会触发
+ * keydown.enter——此时文字还没提交进 v-model，handleSend 读到空串静默返回，
+ * 表现为"敲了字按发送键没反应"。用 isComposing 过滤组词中的 Enter） */
+const handleEnterKey = (e) => {
+  if (e.isComposing) return   // 输入法组词确认，不是发送意图
+  handleSend()
+}
 
 /** 处理发送
  * @param questionOverride 重新回答时传入原问题：跳过添加用户消息、不覆盖输入框
