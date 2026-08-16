@@ -89,7 +89,7 @@
           <el-button
             type="primary"
             :disabled="!inputText.trim() || chatStore.isStreaming"
-            @click="handleSend"
+            @click="handleSend()"
             class="send-btn"
           >
             <el-icon><Promotion /></el-icon> 发送
@@ -158,9 +158,14 @@ const handleEnterKey = (e) => {
 
 /** 处理发送
  * @param questionOverride 重新回答时传入原问题：跳过添加用户消息、不覆盖输入框
+ *
+ * 用户反馈修复：模板 @click 会自动把 MouseEvent 作为第一个参数传入，
+ * 导致 questionOverride 变成事件对象、.trim() 报 TypeError。
+ * 防御性判断 + 模板显式 @click="handleSend()" 双保险
  */
 const handleSend = async (questionOverride) => {
-  const question = (questionOverride || inputText.value).trim()
+  const override = typeof questionOverride === 'string' ? questionOverride : null
+  const question = (override || inputText.value).trim()
   if (!question || chatStore.isStreaming) return
 
   // 如果没有会话，自动创建
@@ -169,7 +174,7 @@ const handleSend = async (questionOverride) => {
     chatStore.setSession(sessionStore.currentId)
   }
 
-  if (!questionOverride) {
+  if (!override) {
     // 正常发送：添加用户消息 + 清空输入框
     chatStore.addUserMessage(question)
     inputText.value = ''
@@ -194,7 +199,7 @@ const handleSend = async (questionOverride) => {
         ? { items: chatStore.contextList }
         : {},
       // 重新回答标记：后端跳过重复保存用户消息
-      isRegenerate: !!questionOverride
+      isRegenerate: !!override
     },
     // onMessage
     (data) => {
