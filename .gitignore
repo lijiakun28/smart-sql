@@ -55,3 +55,4 @@ chroma_data/
 .claude/
 openspec/
 .codegraph/
+*.doc
