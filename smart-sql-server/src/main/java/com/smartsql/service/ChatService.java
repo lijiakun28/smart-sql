@@ -36,7 +36,7 @@ public class ChatService {
      */
     public Flux<String> chatStream(Long sessionId, String question,
                                     String commandType, Object context, boolean isRegenerate) {
-        // 0. 作业题3修复：校验会话有效性，防止消息被写入已删除的会话
+        // 0. 修复：校验会话有效性，防止消息被写入已删除的会话
         //    （message 表无外键约束，不做校验消息会静默落入 status=0 的会话）
         Session session = sessionService.getById(sessionId);
         if (session == null || session.getStatus() == null || session.getStatus() != 1) {
@@ -59,7 +59,7 @@ public class ChatService {
             updateSessionNameIfFirstMessage(sessionId, question);
         }
 
-        // 3. 构建多轮对话历史（作业题2修复：SQL 层取最近6条，截断策略只在 Java 一处）
+        // 3. 构建多轮对话历史（修复：SQL 层取最近6条，截断策略只在 Java 一处）
         List<Map<String, Object>> history = new java.util.ArrayList<>();
         for (Message msg : messageService.listRecentBySession(sessionId, 6)) {
             Map<String, Object> item = new java.util.LinkedHashMap<>();
@@ -90,7 +90,7 @@ public class ChatService {
     /**
      * 更新会话名称（取第一条用户消息前100字）
      *
-     * 修复题6（作业发现的两个问题）：
+     * 修复（两个问题）：
      * 1. 效率：原实现 sessionService.list() 全表拉取后内存过滤 → 改为主键查询
      * 2. bug：原以"名称等于默认值"判断首条消息，用户手动改回"新会话"会被误覆盖
      *    → 改为以消息数判断（刚保存第一条用户消息后 count==1）

@@ -122,7 +122,7 @@ async def generate_sql_stream(request: ChatRequest):
                     thinking_msg = f"📚 匹配到知识库 [{i+1}]: {kt.get('name', '未知')}"
                     thinking_parts.append(thinking_msg)
                     yield f"data: {json.dumps({'type': 'thinking', 'content': thinking_msg}, ensure_ascii=False)}\n\n"
-                    # Day 12：额外发送结构化 knowledge 事件，前端渲染可点击引用+详情浮框
+                    # 额外发送结构化 knowledge 事件，前端渲染可点击引用+详情浮框
                     yield f"data: {json.dumps({'type': 'knowledge', 'index': i+1, 'name': kt.get('name', '未知'), 'description': kt.get('description', ''), 'sql': kt.get('content', '')}, ensure_ascii=False)}\n\n"
                     await asyncio.sleep(0.03)
 
@@ -133,7 +133,7 @@ async def generate_sql_stream(request: ChatRequest):
             chain = build_sql_generation_chain(knowledge_texts)
 
             # 流式生成
-            # Day 12 修复：原实现漏传 history（多轮测试通过是 RAG 巧合，不是历史注入生效）
+            # 修复：原实现漏传 history（多轮测试通过是 RAG 巧合，不是历史注入生效）
             full_response = []
             async for chunk in chain.astream({
                 "question": request.question,

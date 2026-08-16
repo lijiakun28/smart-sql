@@ -1,12 +1,10 @@
 # 踩坑记录（Pitfalls & Solutions）
 
-> 项目开发过程中每天遇到的问题与解决方案记录。
-> 每次遇到新问题，先在这里记录，再修复。
-> 面试时可讲：这些坑体现了真实项目的工程经验。
+> 项目开发过程中遇到的问题与解决方案记录，每个问题包含现象、原因、解决、教训四部分。
 
 ---
 
-## Day 1（环境搭建 + 数据库 + Git 初始化）
+## 阶段 1（环境搭建 + 数据库 + Git 初始化）
 
 ### 坑 1：MySQL 不在 PATH 中
 - **现象**：`mysql --version` 提示命令不存在
@@ -42,7 +40,7 @@
 
 ---
 
-## Day 2（Python AI 引擎跑通 NL→SQL）
+## 阶段 2（Python AI 引擎跑通 NL→SQL）
 
 ### 坑 6：Python 3.14 太新，包版本不兼容
 - **现象**：`pydantic==2.10.4` 报 `No matching distribution found`
@@ -100,7 +98,7 @@
 
 ---
 
-## Day 3（RAG 知识检索全链路）
+## 阶段 3（RAG 知识检索全链路）
 
 ### 坑 14：ChromaDB 多进程并发写入冲突
 - **现象**：同步脚本写入向量库后，运行中的服务器报 `InternalError: Error creating hnsw segment reader: Nothing found on disk`
@@ -123,7 +121,7 @@
 
 ---
 
-## Day 4（Java 中间层编译启动 + 会话 API）
+## 阶段 4（Java 中间层编译启动 + 会话 API）
 
 ### 坑 17：JDK 25 下 Lombok 注解不生效（连环坑）
 - **现象**：`mvn compile` 报"找不到符号 getBusinessDesc()/getTermName()..."——Lombok 的 getter 全部缺失
@@ -161,7 +159,7 @@
 
 ---
 
-## Day 5（知识库 API 联调 + 自动同步）
+## 阶段 5（知识库 API 联调 + 自动同步）
 
 ### 坑 22：全局 logic-delete 配置与业务状态字段冲突
 - **现象**：知识库列表 API 返回 0 条，但 MySQL 里明明有数据；新建的知识也查不到
@@ -200,11 +198,11 @@
 
 ---
 
-## Day 6 补充（真实浏览器驱动测试，agent-browser + Edge）
+## 阶段 6 补充（真实浏览器驱动测试，agent-browser + Edge）
 
 ### 坑 28：SCSS 编译器缺失导致整页不渲染
 - **现象**：页面报 `Preprocessor dependency "sass-embedded" not found`，界面空白无按钮
-- **原因**：组件用了 `<style lang="scss">` 但 package.json 从未安装 SCSS 编译器（Day 1 建骨架时漏装，且之前的验证只用 curl 检查了 JS 编译，没检查 CSS 编译路径）
+- **原因**：组件用了 `<style lang="scss">` 但 package.json 从未安装 SCSS 编译器（阶段 1 建骨架时漏装，且之前的验证只用 curl 检查了 JS 编译，没检查 CSS 编译路径）
 - **解决**：`npm install -D sass-embedded`
 - **教训**：**curl 验证页面 ≠ 浏览器验证页面**。Vite 按需编译，curl 一个 URL 只触发该模块编译；浏览器加载整棵树才会暴露全部依赖缺口。项目 skill 应记录"启动前必须装 sass"
 
@@ -220,69 +218,69 @@
 - **解决**：`line.startsWith('data:')` + `slice(5).trim()` 兼容两种格式
 - **教训**：SSE 格式的"冒号后空格"是可选细节，不同实现不同写法（Python 手写 `data: `有空格，Spring 无空格）。**跨语言协议对接处，先看两边实际字节**
 
-### 坑 31：正则 g 标志的 match() 陷阱（作业修复的次生 bug）
+### 坑 31：正则 g 标志的 match() 陷阱（修复引入的次生 bug）
 - **现象**：SQL 代码块在浏览器中永不渲染，但 thinking 正常
-- **原因**：作业题4修复时把提取/删除共用带 `g` 的正则。`str.match(/re/g)` 只返回完整匹配数组、**不含捕获组**，`match[1]` 是 undefined → extractSql 永远失败
+- **原因**：修复提取/删除共用的正则时把提取/删除共用带 `g` 的正则。`str.match(/re/g)` 只返回完整匹配数组、**不含捕获组**，`match[1]` 是 undefined → extractSql 永远失败
 - **解决**：提取用无 `g` 正则（取捕获组），删除用带 `g` 正则（replace 全部），两个正则分开
 - **教训**：① `match` 带 g 无捕获组是 JS 经典陷阱 ② **修复的修复**——每次修复都可能引入次生 bug，浏览器实测是发现它们的唯一可靠手段
 
 ---
 
-## Day 8-12（浏览器实测与进阶功能阶段）
+## 阶段 8-12（浏览器实测与进阶功能阶段）
 
-### 坑 32：状态变更 API 调用后不刷新列表（Day 8）
+### 坑 32：状态变更 API 调用后不刷新列表（阶段 8）
 - **现象**：知识库"生效"按钮点击后 PUT 返回 200，但表格状态停留旧值——用户误以为操作失败
 - **原因**：模板直接绑定 API 函数 `@click="changeTermStatus(...)"`，调用成功但无人触发列表重载
 - **解决**：包装函数 handleTermStatusChange：await API → ElMessage → loadTerms()
 - **教训**：**写操作成功 ≠ UI 已同步**。所有变更类操作都要走"调 API → 提示 → 刷新列表"三件套
 
-### 坑 33：UI 可发现性与对比度问题四连（Day 9，用户浏览器测试发现）
+### 坑 33：UI 可发现性与对比度问题四连（阶段 9，用户浏览器测试发现）
 - **现象**：① 重命名/删除操作藏在 hover 才显示的菜单 ② 思考过程展开箭头不可见 ③ 点赞/踩图标纯白与背景融合 ④ SQL 黑字在深色背景上看不清
 - **根因**：① 交互入口可发现性差 ② el-collapse 默认箭头样式问题 ③ 图标颜色继承错误 ④ highlight.js 用了浅色主题 github.css，SQL 块却是深色背景——**主题与容器不匹配**
 - **解决**：右键菜单 / 自定义箭头按钮 / 带边框文字按钮 / 换 github-dark.css
 - **教训**：**脚本回归测"能跑通"，人工测试测"好用不好用"**。可发现性（affordance）与对比度是自动化测试盲区。让真实用户用一天，比写一百个断言值钱
 
-### 坑 34：agent-browser 的 fill 不触发 Vue 事件（Day 10，测试工具坑）
+### 坑 34：agent-browser 的 fill 不触发 Vue 事件（阶段 10，测试工具坑）
 - **现象**：自动化 fill 输入框后点搜索，Vue 的 v-model 数据没有更新——请求参数为空
 - **原因**：agent-browser 的 fill 直接设 DOM value，未触发 Vue 依赖的 input 事件
 - **解决**：用原生 setter + dispatchEvent(new Event('input', {bubbles:true}))
 - **教训**：**先验工具再验应用**——自动化工具的交互方式与真实用户不同，遇到"疑似应用 bug"先确认是应用还是工具的问题
 
-### 坑 35：巧合性通过比显性失败更危险（Day 12，本项目最深刻的坑）
+### 坑 35：巧合性通过比显性失败更危险（阶段 12，本项目最深刻的坑）
 - **现象**：多轮对话测试通过（追问后 AI 正确修改上一轮 SQL），但流式端点**根本没把 history 传给链**——链收到 None，Prompt 里历史是"无"
 - **真相**：测试通过是 RAG 检索碰巧兜底——追问"加一个地市分组"时 RAG 恰好检索到同一条口径，AI 基于 RAG 知识完成了修改，与历史注入无关
 - **发现**：做知识引用功能时顺手检查 invoke 参数才发现
 - **教训**：**验证功能时要排除"其他路径碰巧工作"的可能**。隔离性验证：设计一个只有被测功能能答对的用例（如问 RAG 检索不到、只能靠历史回答的问题）
 
-### 坑 36：best-effort 同步的垃圾数据残留（Day 12）
+### 坑 36：best-effort 同步的垃圾数据残留（阶段 12）
 - **现象**：3 条已删除的知识条目仍留在向量库（baseUrl bug 时代的异步删除任务失败所致）
 - **原因**：删除同步是 best-effort（失败仅告警），历史失败无人重试，垃圾永久残留
 - **解决**：对账机制——sync_knowledge.py --full 清空向量库后从 MySQL 重建；VectorStoreManager.wipe()
 - **教训**：**best-effort 系统必须配对账（reconciliation）**。以权威数据源定期重建派生数据，是分布式缓存的通用兜底模式
 
-### 坑 37：重新回答的重复落库 + 审计约束（Day 12 作业）
+### 坑 37：重新回答的重复落库 + 审计约束
 - **现象**：重新回答会把同一条用户问题重复落库（前端 addUserMessage + 后端 chatStream 都保存），历史膨胀成重复问答对
 - **修复思路的坑**：想"删除旧问答对"——但需求要求日志保留 3 个月，删除违反审计
 - **解决**：isRegenerate 标志贯通前端→Java，跳过重复保存用户消息；历史变为一问多答（与 ChatGPT 语义一致）
 - **教训**：**修复方案要考虑审计/日志约束**——"删掉重来"经常违反数据保留要求；"追加替代"更安全
 
-### 坑 38：中文输入法 Enter 键误触发（Day 14 用户反馈）
+### 坑 38：中文输入法 Enter 键误触发（阶段 14 用户反馈）
 - **现象**：手动敲字（中文）后按 Enter 发送无反应，但点发送按钮能发
 - **原因**：`@keydown.enter.exact` 在中文输入法**组词确认**（选候选词）时也触发——此时 `e.isComposing=true`，组词文本还没提交进 v-model，`handleSend` 读到空字符串静默 return
 - **解决**：handleEnterKey 中检查 `e.isComposing`，组词中的 Enter 不触发发送
 - **教训**：**中文应用的前端事件处理必须考虑 IME 状态**——Enter/Tab/上下键等都会在组词时触发。`isComposing` 是过滤输入法中间态的标准手段。测试时用真实中文输入法敲一遍，自动化工具模拟不了 IME
 
-### 坑 39：IDEA 直接打开 index.html 白屏（Day 14 用户反馈）
+### 坑 39：IDEA 直接打开 index.html 白屏（阶段 14 用户反馈）
 - **现象**：从 IDEA 打开 index.html，Edge 访问 localhost:63342 空白页面；localhost:5173 内容完整
 - **原因**：63342 是 IDEA 内置**静态服务器**，只返回原始 HTML——不运行 Vite 的模块打包/SCSS 编译/API 代理。`<script type="module" src="/src/main.js">` 在静态服务器下无法解析
 - **解决**：Vue/Vite 项目必须通过 `npm run dev` 启动的 5173 端口访问，永远不要直接打开 index.html
 - **教训**：**SPA 的"页面"是构建产物不是源文件**——index.html 只是入口壳，内容靠 dev server 动态编译。此坑与坑 28（SCSS 缺失）同族：把前端当静态站点理解
 
-### 坑 40：Vue 模板事件对象污染函数参数（Day 14 用户反馈，作业修复的次生 bug）
+### 坑 40：Vue 模板事件对象污染函数参数（用户反馈，修复引入的次生 bug）
 - **现象**：输入框打字后点击"发送"按钮无反应；回车发送正常
-- **原因**：Day12 作业修复给 `handleSend` 增加了 `questionOverride` 参数，但模板 `@click="handleSend"` 会自动把 **MouseEvent** 作为第一个参数传入——`(questionOverride || inputText.value).trim()` 抛 `TypeError: .trim is not a function`。回车键走 `handleEnterKey`（不传参）所以正常，点击按钮必现
+- **原因**：修复给 `handleSend` 增加了 `questionOverride` 参数，但模板 `@click="handleSend"` 会自动把 **MouseEvent** 作为第一个参数传入——`(questionOverride || inputText.value).trim()` 抛 `TypeError: .trim is not a function`。回车键走 `handleEnterKey`（不传参）所以正常，点击按钮必现
 - **解决**：双保险——模板显式 `@click="handleSend()"` 不传事件 + 函数内 `typeof questionOverride === 'string'` 防御判断
-- **教训**：① **Vue 模板 `@click="fn"` 会传事件对象**，给函数加参数时必须同步改模板绑定 ② 作业修复引入的次生 bug（第二次了，见坑 31）——修复后必须回归原功能路径 ③ 排查"点击没反应"用 `window.addEventListener('error'/'unhandledrejection')` 捕获静默异常最快
+- **教训**：① **Vue 模板 `@click="fn"` 会传事件对象**，给函数加参数时必须同步改模板绑定 ② 修复引入的次生 bug（第二次了，见坑 31）——修复后必须回归原功能路径 ③ 排查"点击没反应"用 `window.addEventListener('error'/'unhandledrejection')` 捕获静默异常最快
 
 ---
 

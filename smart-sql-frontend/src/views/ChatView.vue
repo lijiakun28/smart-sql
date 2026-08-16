@@ -95,7 +95,7 @@
             <el-icon><Promotion /></el-icon> 发送
           </el-button>
 
-          <!-- 作业题2修复：生成中显示停止按钮 -->
+          <!-- 修复：生成中显示停止按钮 -->
           <el-button
             v-if="chatStore.isStreaming"
             type="danger"
@@ -107,7 +107,7 @@
         </div>
       </div>
 
-      <!-- 上下文选择弹窗（作业题1修复：传 selectedIds 供子组件置灰已添加条目） -->
+      <!-- 上下文选择弹窗（修复：传 selectedIds 供子组件置灰已添加条目） -->
       <ContextSelector
         v-if="showContextSelector"
         :selectedIds="chatStore.contextList.map(c => c.id)"
@@ -145,10 +145,10 @@ const showContextSelector = ref(false)
 const showHistory = ref(false)
 const messagesContainer = ref(null)
 let abortController = null
-let streamingIndex = -1   // 作业题2修复：记录正在生成的 AI 消息索引，停止时使用
-let sessionRequestSeq = 0   // 作业题1修复：会话切换请求令牌，消除竞态
+let streamingIndex = -1   // 修复：记录正在生成的 AI 消息索引，停止时使用
+let sessionRequestSeq = 0   // 修复：会话切换请求令牌，消除竞态
 
-/** 回车发送（用户反馈修复：中文输入法组词中按 Enter 确认候选词也会触发
+/** 回车发送（修复：中文输入法组词中按 Enter 确认候选词也会触发
  * keydown.enter——此时文字还没提交进 v-model，handleSend 读到空串静默返回，
  * 表现为"敲了字按发送键没反应"。用 isComposing 过滤组词中的 Enter） */
 const handleEnterKey = (e) => {
@@ -159,7 +159,7 @@ const handleEnterKey = (e) => {
 /** 处理发送
  * @param questionOverride 重新回答时传入原问题：跳过添加用户消息、不覆盖输入框
  *
- * 用户反馈修复：模板 @click 会自动把 MouseEvent 作为第一个参数传入，
+ * 修复：模板 @click 会自动把 MouseEvent 作为第一个参数传入，
  * 导致 questionOverride 变成事件对象、.trim() 报 TypeError。
  * 防御性判断 + 模板显式 @click="handleSend()" 双保险
  */
@@ -179,7 +179,7 @@ const handleSend = async (questionOverride) => {
     chatStore.addUserMessage(question)
     inputText.value = ''
   }
-  // 重新回答（作业题1修复）：复用原问题，不重复落库用户消息、不覆盖输入框
+  // 重新回答（修复）：复用原问题，不重复落库用户消息、不覆盖输入框
   chatStore.setStreaming(true)
 
   // 添加 AI 消息壳
@@ -189,7 +189,7 @@ const handleSend = async (questionOverride) => {
   scrollToBottom(true)
 
   // 发送 SSE 请求
-  // 浏览器测试修复：context 必须传对象（后端/Python 期望 dict），不能传数组
+  // 修复：context 必须传对象（后端/Python 期望 dict），不能传数组
   abortController = chatStream(
     chatStore.currentSessionId,
     {
@@ -230,7 +230,7 @@ const handleSend = async (questionOverride) => {
   )
 }
 
-/** 停止生成（作业题2修复：调用 AbortController.abort() 真正中断请求） */
+/** 停止生成（修复：调用 AbortController.abort() 真正中断请求） */
 const handleStop = () => {
   if (abortController) {
     abortController.abort()   // 中断 fetch 流（AbortError 不会触发 onError 的报错分支）
@@ -242,7 +242,7 @@ const handleStop = () => {
   }
 }
 
-/** 选择会话（作业题1修复：请求令牌消除竞态——只有最新请求允许更新消息列表） */
+/** 选择会话（修复：请求令牌消除竞态——只有最新请求允许更新消息列表） */
 const handleSelectSession = async (sessionId) => {
   const seq = ++sessionRequestSeq   // 发起时取号
   chatStore.setSession(sessionId)
@@ -285,7 +285,7 @@ const handleFeedback = (index, type) => {
   ElMessage.success(type === 'like' ? '感谢您的点赞！' : '感谢您的反馈，我们会持续改进！')
 }
 
-/** 重新回答（作业题1修复：复用原问题直接发送，不重复落库、不覆盖输入框）
+/** 重新回答（修复：复用原问题直接发送，不重复落库、不覆盖输入框）
  * 历史形态变为：用户X → AI旧 → AI新（一问多答，与 ChatGPT 语义一致） */
 const handleRegenerate = (aiMsgIndex) => {
   for (let i = aiMsgIndex - 1; i >= 0; i--) {
@@ -298,7 +298,7 @@ const handleRegenerate = (aiMsgIndex) => {
 }
 
 /** 滚动到底部
- * 作业题4修复（双武器）：
+ * 修复（双武器）：
  * ① rAF 节流：多个 chunk 的滚动请求合并到每帧一次，消除 Layout Thrashing
  * ② 滚动锁：用户主动上滑查看历史时（距底部 >40px）暂停自动滚动，尊重用户意图
  */

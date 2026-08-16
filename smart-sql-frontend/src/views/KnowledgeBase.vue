@@ -206,7 +206,7 @@ const editingCaliber = ref(null)
 const caliberForm = reactive({ caliberName: '', sqlLogic: '', businessDesc: '' })
 const caliberFormRef = ref(null)
 
-// 作业题1修复：表单校验规则
+// 修复：表单校验规则
 const termRules = {
   termName: [
     { required: true, message: '术语名称不能为空', trigger: 'blur' },
@@ -224,7 +224,7 @@ const caliberRules = {
 const statusType = (s) => ({ active: 'success', inactive: 'warning', new: 'info', modified: '' }[s] || 'info')
 const statusLabel = (s) => ({ active: '生效', inactive: '失效', new: '新增', modified: '修改' }[s] || s)
 
-// ─── 作业题2修复：表单生命周期管理 ───
+// ─── 修复：表单生命周期管理 ───
 
 /** 打开新增弹窗（进入时初始化：显式重置表单，防止残留上次数据） */
 const openCreateTerm = () => {
@@ -262,7 +262,7 @@ const loadTerms = async () => {
 }
 
 const saveTerm = async () => {
-  // 作业题1修复：双层防线
+  // 修复：双层防线
   await termFormRef.value.validate()     // 第1层：前端校验（体验层），失败抛出
   const res = editingTerm.value
     ? await updateTerm(editingTerm.value.id, termForm)
@@ -290,7 +290,7 @@ const handleDeleteTerm = async (row) => {
   loadTerms()
 }
 
-/** 状态变更（浏览器实测修复：原模板直接调 API 函数，成功后不刷新列表） */
+/** 状态变更（实测修复：原模板直接调 API 函数，成功后不刷新列表） */
 const handleTermStatusChange = async (id, status) => {
   await changeTermStatus(id, status)
   ElMessage.success(status === 'active' ? '已生效' : '已失效')
@@ -307,7 +307,7 @@ const loadCalibers = async () => {
 }
 
 const saveCaliber = async () => {
-  // 作业题1修复：双层防线（同术语）
+  // 修复：双层防线（同术语）
   await caliberFormRef.value.validate()
   const res = editingCaliber.value
     ? await updateCaliber(editingCaliber.value.id, caliberForm)
@@ -335,7 +335,7 @@ const handleDeleteCaliber = async (row) => {
   loadCalibers()
 }
 
-/** 状态变更（浏览器实测修复：同术语库问题） */
+/** 状态变更（实测修复：同术语库问题） */
 const handleCaliberStatusChange = async (id, status) => {
   await changeCaliberStatus(id, status)
   ElMessage.success(status === 'active' ? '已生效' : '已失效')

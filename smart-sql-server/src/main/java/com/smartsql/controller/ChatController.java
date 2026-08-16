@@ -58,7 +58,7 @@ public class ChatController {
         String commandType = (String) body.getOrDefault("commandType", "generate");
         // 浏览器测试发现：前端 context 可能是数组或对象，不做强转直接透传给 Python
         Object context = body.get("context");
-        // 重新回答标记：跳过重复保存用户消息（作业题1修复，一问多答语义）
+        // 重新回答标记：跳过重复保存用户消息（修复，一问多答语义）
         boolean isRegenerate = Boolean.TRUE.equals(body.get("isRegenerate"));
 
         // 注意：首条消息自动命名已移至 ChatService.chatStream 内部
@@ -72,7 +72,7 @@ public class ChatController {
 
         StringBuilder fullContent = new StringBuilder();
         StringBuilder thinkingContent = new StringBuilder();
-        // 作业题1修复：保存标志，防止断开路径和正常完成路径重复保存
+        // 修复：保存标志，防止断开路径和正常完成路径重复保存
         final boolean[] saved = {false};
 
         aiStream.subscribe(
@@ -91,7 +91,7 @@ public class ChatController {
                             emitter.send(SseEmitter.event().data(chunk));
                             appendChunkContent(chunk, fullContent, thinkingContent, sessionId);
                         } catch (Exception e) {
-                            // 作业题1修复：客户端断开（用户点停止）——
+                            // 修复：客户端断开（用户点停止）——
                             // ① 取消上游订阅，停止从 Python 拉流（不再浪费 AI token）
                             // ② 保存"用户实际看到的部分回答"（需求：展示到停止前已回答的内容）
                             if (subscription != null) {
@@ -158,7 +158,7 @@ public class ChatController {
             } else if (SSE_TYPE_THINKING.equals(type)) {
                 thinkingContent.append(node.path("content").asText()).append("\n");
             } else if (SSE_TYPE_DONE.equals(type)) {
-                // 作业题4修复：AI 真实耗时在流的 done 事件里（Python 侧已统计），
+                // 修复：AI 真实耗时在流的 done 事件里（Python 侧已统计），
                 // 在流内消费它——而不是用 @Around 切 chat() 方法（那只能测到 SSE 建连耗时）
                 log.info("[问答日志] 会话={} AI回答耗时={}秒", sessionId, node.path("elapsed").asDouble());
             }

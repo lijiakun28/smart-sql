@@ -66,7 +66,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  /** 追加知识库引用（Day 12：结构化 knowledge 事件，供前端渲染可点击引用） */
+  /** 追加知识库引用（结构化 knowledge 事件，供前端渲染可点击引用） */
   function appendKnowledge(index, knowledge) {
     if (messages.value[index]) {
       if (!messages.value[index].sources) {

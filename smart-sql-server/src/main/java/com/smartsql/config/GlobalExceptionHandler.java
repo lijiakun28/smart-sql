@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
 
     /**
      * 参数校验异常（@Pattern 等）→ HTTP 400
-     * 作业题1补充：校验失败必须返回 400 让前端明确感知，
+     * 补充：校验失败必须返回 400 让前端明确感知，
      * 而不是落入通用 Exception 处理器变成 500
      */
     @ExceptionHandler(ConstraintViolationException.class)

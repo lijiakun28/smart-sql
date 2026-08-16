@@ -30,7 +30,7 @@ public class AiProxyService {
         // @Value 字段注入发生在构造器执行之后，在构造器里读字段拿到的是 null，
         // 会导致 WebClient 无 baseUrl、请求打到 localhost:80（验证时踩过的坑）
 
-        // 作业题3修复：WebClient 必须配置超时，否则 AI 服务挂起时线程池会被耗尽
+        // 修复：WebClient 必须配置超时，否则 AI 服务挂起时线程池会被耗尽
         HttpClient httpClient = HttpClient.create()
                 // 连接超时 5 秒：AI 服务不可达时快速失败
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
@@ -92,7 +92,7 @@ public class AiProxyService {
     /**
      * 同步知识库到 AI 引擎的向量库
      *
-     * 作业题2修复：@Async 在独立线程池异步执行，不阻塞知识库 CRUD 的 HTTP 线程。
+     * 修复：@Async 在独立线程池异步执行，不阻塞知识库 CRUD 的 HTTP 线程。
      * best-effort 语义保留：失败仅告警（由 KnowledgeService.syncToAi 的 try/catch 兜底），
      * 不会因为 AI 服务慢/挂而拖慢用户的知识库操作。
      */

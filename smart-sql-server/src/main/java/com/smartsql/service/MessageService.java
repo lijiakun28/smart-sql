@@ -26,7 +26,7 @@ public class MessageService {
     }
 
     /**
-     * 查询会话最近 N 条消息（作业题2修复：SQL 层截断，避免全量拉取后内存丢弃）
+     * 查询会话最近 N 条消息（修复：SQL 层截断，避免全量拉取后内存丢弃）
      * 倒序取最新 N 条后反转恢复时间正序
      */
     public List<Message> listRecentBySession(Long sessionId, int limit) {

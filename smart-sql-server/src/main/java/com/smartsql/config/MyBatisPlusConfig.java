@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 public class MyBatisPlusConfig implements MetaObjectHandler {
 
     /**
-     * 分页插件（Day 5 发现：缺失导致 selectPage 不分页且 total=0）
+     * 分页插件（缺失导致 selectPage 不分页且 total=0）
      */
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {

@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * 异步任务配置
  *
- * 作业题2修复：知识库同步 AI 引擎在独立线程池执行，
+ * 修复：知识库同步 AI 引擎在独立线程池执行，
  * 不占用处理 HTTP 请求的线程（Tomcat 默认 200 线程，被慢同步占满会拖垮所有接口）。
  */
 @EnableAsync

@@ -31,7 +31,7 @@
           <div v-if="showThinking">
             <pre class="thinking-text">{{ message.thinking }}</pre>
 
-            <!-- Day 12：知识库引用（可点击查看详情，需求：每个知识库有序号+点击浮框展示只读页面） -->
+            <!-- 知识库引用（可点击查看详情，每个知识库有序号+点击浮框展示只读页面） -->
             <div v-if="message.sources && message.sources.length" class="knowledge-refs">
               <div class="refs-title">📚 知识库引用</div>
               <div
@@ -47,7 +47,7 @@
           </div>
         </div>
 
-        <!-- 知识详情浮框（作业题2修复：布尔管开关、对象管数据，两个变量单一语义） -->
+        <!-- 知识详情浮框（修复：布尔管开关、对象管数据，两个变量单一语义） -->
         <el-dialog
           v-model="knowledgeDialogVisible"
           :title="'知识详情 - ' + (currentKnowledge ? currentKnowledge.name : '')"
@@ -73,7 +73,7 @@
           <pre><code v-html="highlightedSql"></code></pre>
         </div>
 
-        <!-- 普通文本：v-text 渲染，杜绝 XSS（作业题1修复） -->
+        <!-- 普通文本：v-text 渲染，杜绝 XSS（修复） -->
         <div class="text-content" v-text="message.content ? stripSqlBlock(message.content) : ''"></div>
 
         <!-- 流式加载指示 -->
@@ -87,7 +87,7 @@
           <el-button size="small" class="feedback-btn" @click="$emit('feedback', index, 'dislike')">
             <el-icon><ThumbDown /></el-icon> 没用
           </el-button>
-          <!-- Day 12：重新回答（需求：针对回答过的问题，再次进行回答） -->
+          <!-- 重新回答（针对回答过的问题，再次进行回答） -->
           <el-button size="small" class="feedback-btn" @click="$emit('regenerate', index)">
             <el-icon><Refresh /></el-icon> 重新回答
           </el-button>
@@ -108,7 +108,7 @@ hljs.registerLanguage('sql', sql)
 
 /** 思考过程展开状态 */
 const showThinking = ref(false)
-/** 知识详情浮框（作业题2修复：拆分状态，布尔管开关、对象管数据） */
+/** 知识详情浮框（修复：拆分状态，布尔管开关、对象管数据） */
 const knowledgeDialogVisible = ref(false)
 const currentKnowledge = ref(null)
 
@@ -134,7 +134,7 @@ const commandLabel = (type) => ({
 }[type] || type)
 
 /**
- * SQL 代码块正则（作业题4修复：忽略大小写 + 允许空格）
+ * SQL 代码块正则（修复：忽略大小写 + 允许空格）
  * ⚠️ 提取与删除必须用不同标志：
  *   - match()[1] 取捕获组需要【无 g 标志】（带 g 时 match 只返回完整匹配数组）
  *   - replace 删除全部代码块需要【g 标志】
@@ -267,7 +267,7 @@ const copySql = () => {
   }
 }
 
-/* Day 12：知识库引用 */
+/* 知识库引用 */
 .knowledge-refs {
   margin-top: 8px;
   padding: 8px 10px;
@@ -324,7 +324,7 @@ const copySql = () => {
   font-size: 14px;
   line-height: 1.8;
   color: #303133;
-  /* 作业题1修复：v-text 渲染后靠 CSS 保留换行 */
+  /* 修复：v-text 渲染后靠 CSS 保留换行 */
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -346,7 +346,7 @@ const copySql = () => {
   display: flex;
   gap: 8px;
 
-  /* 用户反馈修复：图标纯白与背景融合 → 明确颜色+边框可见 */
+  /* 修复：图标纯白与背景融合 → 明确颜色+边框可见 */
   .feedback-btn {
     color: #606266;
     border: 1px solid #dcdfe6;

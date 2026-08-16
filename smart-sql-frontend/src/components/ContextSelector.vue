@@ -23,7 +23,7 @@
             </template>
           </el-input>
           <div class="result-list">
-            <!-- 作业题1修复：已添加的条目置灰并显示"已添加"，点击不再触发选择 -->
+            <!-- 修复：已添加的条目置灰并显示"已添加"，点击不再触发选择 -->
             <div
               v-for="item in tableResults"
               :key="item.id"
@@ -75,7 +75,7 @@ import { ref } from 'vue'
 import { searchKnowledge } from '@/api/knowledge'
 
 const props = defineProps({
-  // 作业题1修复：父组件传入已添加的 id 列表，用于置灰展示
+  // 修复：父组件传入已添加的 id 列表，用于置灰展示
   selectedIds: { type: Array, default: () => [] }
 })
 
@@ -161,7 +161,7 @@ const searchCode = async () => {
   border-radius: 6px;
   &:hover { background: #f0f5ff; }
 
-  /* 作业题1修复：已添加条目置灰（需求原文"条目上的添加按钮变为灰色"） */
+  /* 修复：已添加条目置灰（需求原文"条目上的添加按钮变为灰色"） */
   &.added {
     color: #c0c4cc;
     cursor: not-allowed;

@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * 知识库管理 Controller
  */
-@Validated  // 作业题1修复：必须加 @Validated 才能让 @RequestParam 的 @Pattern 校验生效
+@Validated  // 修复：必须加 @Validated 才能让 @RequestParam 的 @Pattern 校验生效
 @RestController
 @RequestMapping("/api/knowledge")
 public class KnowledgeController {

@@ -34,7 +34,7 @@ export function chatStream(sessionId, body, onMessage, onError, onComplete) {
         buffer = lines.pop() // 保留不完整部分
 
         for (const line of lines) {
-          // 浏览器实测修复：Spring SseEmitter 输出 "data:{json}"（无空格），
+          // 实测修复：Spring SseEmitter 输出 "data:{json}"（无空格），
           // 标准 SSE 是 "data: {json}"（有空格）——两种都要兼容
           if (line.startsWith('data:')) {
             try {
@@ -57,6 +57,6 @@ export function chatStream(sessionId, body, onMessage, onError, onComplete) {
   return controller
 }
 
-/** 更新消息反馈（作业题3修复：顶部静态导入，去掉无理由的动态 import） */
+/** 更新消息反馈（修复：顶部静态导入，去掉无理由的动态 import） */
 export const updateFeedback = (messageId, feedback) =>
   request.put(`/messages/${messageId}/feedback`, null, { params: { feedback } })

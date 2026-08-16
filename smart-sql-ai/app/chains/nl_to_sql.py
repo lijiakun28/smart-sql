@@ -73,7 +73,7 @@ def format_history(history) -> str:
         return "（无历史对话，这是第一轮提问）"
 
     lines = []
-    # 作业题2修复：截断策略只在 Java 侧（数据拥有者），Python 收到什么格式化什么
+    # 修复：截断策略只在 Java 侧（数据拥有者），Python 收到什么格式化什么
     for msg in history:
         role = "用户" if msg.get("role") == "user" else "AI"
         content = str(msg.get("content", ""))[:500]  # 每条截断500字，防历史膨胀
@@ -83,7 +83,7 @@ def format_history(history) -> str:
 
 def format_context(context) -> str:
     """
-    作业题2修复：把结构化上下文 {items: [...]} 格式化成 AI 友好文本
+    修复：把结构化上下文 {items: [...]} 格式化成 AI 友好文本
 
     之前直接 json.dumps 把原始 JSON 塞进 Prompt——键名和括号全是 token 噪音，
     AI 还要自己解析 JSON 结构。现在在离 Prompt 最近的一层格式化成可读文本：

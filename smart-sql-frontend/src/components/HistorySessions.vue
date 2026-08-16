@@ -82,7 +82,7 @@ const chatStore = useChatStore()
 const keyword = ref('')
 const loading = ref(false)
 
-// 作业题2修复：删除本地 sessionList 快照，模板直接消费响应式 store
+// 修复：删除本地 sessionList 快照，模板直接消费响应式 store
 // （快照副本制造"两份数据要同步"的问题，问题本不该存在）
 const loadSessions = async () => {
   loading.value = true
@@ -127,7 +127,7 @@ const handleDelete = async (session) => {
     await deleteSession(session.id)
     ElMessage.success('已删除')
 
-    // 作业题3修复：删除的是当前会话时，重置聊天区状态并关闭浮框
+    // 修复：删除的是当前会话时，重置聊天区状态并关闭浮框
     // （否则聊天区残留已删除会话的消息，用户还能继续向"已删除会话"发问）
     if (session.id === sessionStore.currentId) {
       chatStore.setSession(null)
