@@ -184,8 +184,8 @@ async def sync_knowledge(request: KnowledgeSyncRequest):
     ids = []
 
     for item in request.items:
-        # 构建检索文本：标题重复加权三次（与 sync_knowledge.py 保持一致，防长文档稀释标题语义）
-        doc_text = f"{item.name}\n{item.name}\n{item.name}"
+        # 构建检索文本：标题重复加权五次（与 sync_knowledge.py 保持一致，防长文档稀释标题语义）
+        doc_text = f"{item.name}\n{item.name}\n{item.name}\n{item.name}\n{item.name}"
         if item.description:
             doc_text += f"\n描述：{item.description}"
         if item.sql_logic:

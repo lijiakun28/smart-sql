@@ -282,6 +282,35 @@
 - **解决**：双保险——模板显式 `@click="handleSend()"` 不传事件 + 函数内 `typeof questionOverride === 'string'` 防御判断
 - **教训**：① **Vue 模板 `@click="fn"` 会传事件对象**，给函数加参数时必须同步改模板绑定 ② 修复引入的次生 bug（第二次了，见坑 31）——修复后必须回归原功能路径 ③ 排查"点击没反应"用 `window.addEventListener('error'/'unhandledrejection')` 捕获静默异常最快
 
+### 坑 41：批处理文件 UTF-8 编码导致中文路径 cd 失败（演示环境重建）
+- **现象**：`start-java.bat` 内 `cd /d D:\智能SQL\smart-sql-server` 后 Maven 报 `MissingProjectException`，Java 始终起不来
+- **原因**：编辑器写入的 bat 为 **UTF-8 无 BOM**，cmd 按系统 ANSI（GBK）解析 bat 文件，"智能SQL"变成乱码 → `cd` 失败 → 在错误目录执行 mvn
+- **解决**：bat 文件以 **GBK 编码 + CRLF 换行**重写（Python `encoding='gbk'` 写入）
+- **教训**：① Windows 下含中文路径的 bat 必须 GBK 编码（或路径全部 ASCII）② 命令行直接传参不受影响（bash/PowerShell 层面已转 UTF-8），只有**文件被 cmd 解析**时踩坑
+
+### 坑 42：知识库修改后状态变 modified，同步脚本只同步 active（数据在库检索不到）
+- **现象**：更新口径描述后重新全量同步，检索时该口径彻底消失（`col.get(ids=...)` 返回空）
+- **原因**：知识库状态机规则"修改后条目状态变为修改"——PUT 更新把 `active → modified`；`sync_knowledge.py` 只读 `status='active'` 的条目，`--full` 重建时 modified 条目被排除（wipe 后没再写入）
+- **解决**：修改后需重新调用 `/api/knowledge/calibers/{id}/status?status=active` 生效，再同步
+- **教训**：① 状态机是真实约束：**新增→生效→同步 与 修改→再生效→再同步** 是完整闭环，直接改数据库绕过会踩同样的坑 ② 排查"知识不生效"先查 MySQL 状态列，再查向量库（对账三处：MySQL → 向量库 → 检索结果）
+
+### 坑 43：口径描述补充维表信息后标题语义被稀释，加权 3x→5x
+- **现象**：为口径补充"JOIN user_info 拉链表限定生效时间"等维表说明后，该口径在**精确标题匹配**查询下都跌出 Top-5（更新前排名第 1）
+- **原因**：描述变长后，标题在文档总 token 中占比下降，embedding 平均化稀释了标题语义——同一个问题的放大版（坑：2x→3x）
+- **解决**：标题重复加权从 3x 提升到 **5x**（`sync_knowledge.py` 与 `app/main.py` 两处同步修改），同时精简描述
+- **教训**：① 知识条目描述要**自包含但不冗余**：维表关联信息是必要内容，但应精炼 ② 加权倍数需要与文档实际长度匹配，长文档条目需要更高加权 ③ 检索回归测试要有"精确标题命中"用例
+
+### 坑 44：Maven 前缀解析失败（No plugin found for prefix 'spring-boot'）
+- **现象**：`mvn spring-boot:run` 报 `No plugin found for prefix 'spring-boot'`，但插件 3.5.16 已在本地 .m2 仓库
+- **原因**：Maven 解析 `spring-boot:` 前缀需从仓库下载 `maven-metadata.xml`，镜像源网络不稳定时解析失败（本地目录下只有版本号子目录，无父级 metadata）
+- **解决**：使用完整插件坐标绕过前缀解析：`mvn org.springframework.boot:spring-boot-maven-plugin:3.5.16:run`
+- **教训**：Maven 前缀解析依赖网络 metadata；离线/弱网环境用完整坐标最稳
+
+### 坑 45：PowerShell 输出重定向编码陷阱（UTF-16 与 GBK 交替）
+- **现象**：PowerShell `>` 重定向到文件默认写 **UTF-16LE**；PowerShell 控制台输出到管道是 **GBK**；Git Bash 显示按 UTF-8——三层编码不一致导致中文乱码
+- **解决**：涉及中文输出时：① 脚本内 `[System.IO.File]::WriteAllText(path, text, [Text.Encoding]::UTF8)` 直接写 UTF-8 文件 ② 或 Python 侧用 `encoding='utf-16'` / `'gbk'` 显式解码
+- **教训**：跨进程（PowerShell↔bash↔文件）传递中文必须先确认编码链；BOM 检查（`xxd 前 8 字节`）是最快诊断手段
+
 ---
 
 ## 通用经验总结

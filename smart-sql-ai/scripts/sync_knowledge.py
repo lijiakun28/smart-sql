@@ -98,9 +98,9 @@ def sync_to_chroma(items):
     texts, metadatas, ids = [], [], []
     for item in items:
         # 构建检索文档：标题重复加权（避免长文档稀释标题语义）
-        # 口径条目含 SQL 代码时文档较长，标题语义会被平均稀释，
-        # 重复标题三次提升标题匹配度（演示验证：2次时精确口径未进Top5）
-        doc_text = f"{item['name']}\n{item['name']}\n{item['name']}"
+        # 口径条目含 SQL 代码和关联维表说明时文档较长，标题语义会被平均稀释，
+        # 重复标题五次提升标题匹配度（演示验证：3次时更新描述后的长口径仍跌出Top5）
+        doc_text = f"{item['name']}\n{item['name']}\n{item['name']}\n{item['name']}\n{item['name']}"
         if item["description"]:
             doc_text += f"\n描述：{item['description']}"
         if item["sql_logic"]:
