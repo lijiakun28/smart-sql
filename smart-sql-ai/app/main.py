@@ -110,10 +110,11 @@ async def generate_sql_stream(request: ChatRequest):
             yield f"data: {json.dumps({'type': 'thinking', 'content': '🔍 正在检索相关知识...'}, ensure_ascii=False)}\n\n"
             await asyncio.sleep(0.05)
 
-            # RAG 检索
+            # RAG 检索（top_k=8：知识库 22 条体量小，多注入保证关联表
+            # user_info 等在点名条目占位后仍能进入上下文，如题目2 5G流量分析）
             knowledge_texts = await vs.search(
                 query=request.question,
-                top_k=5
+                top_k=8
             )
 
             # 发送检索到的知识库信息
