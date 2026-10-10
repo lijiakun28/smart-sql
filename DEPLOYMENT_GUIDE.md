@@ -76,11 +76,18 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-在 `.env` 中至少填写下列两项：
+在 `.env` 中至少填写下列三项：
 
 ```dotenv
 LLM_API_KEY=你的_DeepSeek_API_Key
 MYSQL_PASSWORD=你的_MySQL_root_密码
+INTERNAL_API_TOKEN=随机生成的内部调用令牌
+```
+
+`INTERNAL_API_TOKEN` 用于 Java 中间层调用 AI 引擎时的鉴权（Java 侧读同名环境变量，两侧必须完全一致）。生成方式：
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 其余默认项通常无需调整。`.env` 已被 Git 忽略，不应移动或重命名为会被提交的配置文件。
@@ -109,17 +116,20 @@ python scripts\sync_knowledge.py --full
 
 ## 5. 启动 Java 服务
 
-Java 服务需要通过当前终端的环境变量读取 MySQL 密码：
+Java 服务需要通过当前终端的环境变量读取两项配置：MySQL 密码，以及与 AI 引擎约定的内部调用令牌。
 
 ```powershell
 cd D:\智能SQL\smart-sql-server
 $env:MYSQL_PASSWORD = '你的_MySQL_root_密码'
+$env:INTERNAL_API_TOKEN = '与 smart-sql-ai\.env 中完全相同的令牌'
 mvn spring-boot:run
 ```
 
 启动成功后，观察终端中 Spring Boot 已在 8080 端口启动的日志。
 
-> 每次新开 Java 终端都要重新设置 `MYSQL_PASSWORD`。不要将真实密码写入 `application.yml`。
+> 每次新开 Java 终端都要重新设置这两个变量。不要将真实密码写入 `application.yml`。
+>
+> ⚠️ `INTERNAL_API_TOKEN` 未设置、或与 AI 引擎侧不一致时，**问答功能会整体不可用** —— AI 引擎对未携带正确令牌的 `/ai/*` 请求一律拒绝，这是刻意的 fail-closed 设计（安全配置缺失必须立刻可见，不能悄悄退化成无防护）。
 
 ## 6. 启动 AI 服务
 
@@ -160,7 +170,7 @@ http://localhost:5173
 3. Java 服务（8080）。
 4. Vue 前端（5173）。
 
-项目根目录的 `start-all.bat` 可帮助同时打开三个服务窗口。使用前，请先将其中的 `YOUR_MYSQL_PASSWORD` 替换为本机密码；或优先使用上面的手动启动方式，以避免在脚本中保存密码。
+项目根目录的 `start-all.bat` 可帮助同时打开三个服务窗口。它会自动从 `smart-sql-ai\.env` 读取 `MYSQL_PASSWORD` 与 `INTERNAL_API_TOKEN` 并注入 Java 进程，**脚本自身不含任何密码**（该文件含本机绝对路径，已被 `.gitignore` 排除，不入库）。
 
 ## 9. 核心功能验证
 
@@ -224,6 +234,22 @@ npm run dev
 2. Java 服务是否已启动并监听 8080。
 3. `.env` 中 `LLM_API_KEY` 是否有效。
 4. Java 终端是否已设置正确的 `MYSQL_PASSWORD`。
+5. **Java 终端与 `.env` 中的 `INTERNAL_API_TOKEN` 是否完全一致**（见下方专项排查）。
+
+### 问答整体不可用 / AI 引擎返回 401 或 503
+
+这是内部令牌未配置或两端不一致的典型症状。AI 引擎对所有 `/ai/*` 业务接口强制校验请求头 `X-Internal-Token`：
+
+- **401 未授权** —— 令牌不匹配：逐字符核对 `smart-sql-ai\.env` 里的 `INTERNAL_API_TOKEN` 与 Java 终端里的 `$env:INTERNAL_API_TOKEN`（注意首尾空格、不要带引号）。
+- **503 服务未配置内部令牌** —— AI 引擎侧完全没读到该变量：确认 `smart-sql-ai\.env` 里存在这一行且非空。
+
+用下面的命令可绕过 Java 直接验证 AI 引擎侧的鉴权状态（`/ai/health` 不需要令牌）：
+
+```powershell
+curl.exe -i http://localhost:8000/ai/health
+```
+
+若该请求返回 200，说明服务本身正常，问题在令牌上。
 
 ### 知识库同步失败或模型不知道新增口径
 

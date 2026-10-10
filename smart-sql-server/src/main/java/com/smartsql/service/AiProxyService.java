@@ -44,7 +44,7 @@ public class AiProxyService {
                 .baseUrl(aiEngineUrl)
                 .clientConnector(new ReactorClientHttpConnector(httpClient));
 
-        // 统一附带内部令牌：AI 引擎侧 /ai/knowledge/sync 会校验 X-Internal-Token。
+        // 统一附带内部令牌：AI 引擎侧 /ai/* 的业务接口都会校验 X-Internal-Token。
         // 用 defaultHeader 一次配好，避免每个调用点各写一遍。
         if (internalToken != null && !internalToken.isBlank()) {
             builder.defaultHeader("X-Internal-Token", internalToken);

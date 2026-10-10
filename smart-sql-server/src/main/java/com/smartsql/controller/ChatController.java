@@ -133,7 +133,16 @@ public class ChatController {
                     public void onComplete() {
                         try {
                             // 流正常结束，保存完整 AI 回复
-                            if (!saved[0]) {
+                            //
+                            // ⚠️ 必须判空内容：AI 引擎在 LLM 调用失败时会捕获异常并【正常结束流】，
+                            // 此时一个 content 事件都没发出，fullContent 为空字符串，
+                            // 无脑保存就会在历史里留下一条空白 AI 消息（实测复现过）。
+                            // 判空也让本路径与下方"客户端断开"路径行为一致——此前两者不一致。
+                            //
+                            // 选择"不留消息"而非"把错误文案落库"：历史会被 listRecentBySession
+                            // 作为多轮上下文喂回 Prompt，把 "AI 服务异常，请稍后重试" 当成上一轮的
+                            // AI 回答注入，会污染后续对话。
+                            if (!saved[0] && fullContent.length() > 0) {
                                 saved[0] = true;
                                 Message savedMsg = chatService.saveAssistantMessage(sessionId,
                                         fullContent.toString(),

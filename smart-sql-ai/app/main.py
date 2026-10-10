@@ -46,18 +46,23 @@ app.add_middleware(
 
 
 async def verify_internal_token(x_internal_token: str = Header(default="")):
-    """校验内部调用令牌，仅用于 /ai/knowledge/sync 这类高破坏性接口。
+    """校验内部调用令牌，用于 /ai/* 下的全部业务接口（/ai/health 除外）。
 
     ⚠️ 未配置 INTERNAL_API_TOKEN 时一律拒绝（fail-closed）：
     "忘了配"不能等价于"没有防护"。
     比较用 secrets.compare_digest，避免逐字符比较带来的时序侧信道。
+
+    调用方只有 Java 中间层（AiProxyService 通过 WebClient 的 defaultHeader 统一携带）。
+    注意：因为 fail-closed，令牌未配置或两端不一致时**整个问答功能都会不可用**
+    —— 这是刻意的：安全配置缺失必须立刻可见，而不是悄悄退化成无防护。
+    /ai/health 保持公开，供部署探活使用（只暴露模型名，无敏感信息）。
     """
     expected = settings.INTERNAL_API_TOKEN
     if not expected:
-        logger.error("INTERNAL_API_TOKEN 未配置，拒绝知识库同步请求")
-        raise HTTPException(status_code=503, detail="服务未配置内部令牌，同步接口不可用")
+        logger.error("INTERNAL_API_TOKEN 未配置，拒绝全部 /ai 业务接口请求")
+        raise HTTPException(status_code=503, detail="服务未配置内部令牌，接口不可用")
     if not secrets.compare_digest(x_internal_token, expected):
-        logger.warning("知识库同步请求内部令牌校验失败")
+        logger.warning("内部令牌校验失败（调用方未携带或令牌不一致）")
         raise HTTPException(status_code=401, detail="未授权")
 
 
@@ -96,9 +101,12 @@ async def health_check():
 # ────────────────────────────────
 #  非流式 NL→SQL 生成
 # ────────────────────────────────
-@app.post("/ai/generate")
+@app.post("/ai/generate", dependencies=[Depends(verify_internal_token)])
 async def generate_sql(request: ChatRequest):
-    """非流式生成 SQL（用于调试/简单场景）"""
+    """非流式生成 SQL（用于调试/简单场景）
+
+    需要内部令牌：本接口会消耗 LLM 额度，裸奔等于把 key 借给任何能访问到端口的人。
+    """
     vs = get_vector_store_manager()
 
     # RAG 检索相关知识点
@@ -124,9 +132,12 @@ async def generate_sql(request: ChatRequest):
 # ────────────────────────────────
 #  SSE 流式 NL→SQL 生成（核心端点）
 # ────────────────────────────────
-@app.post("/ai/generate/stream")
+@app.post("/ai/generate/stream", dependencies=[Depends(verify_internal_token)])
 async def generate_sql_stream(request: ChatRequest):
-    """流式生成 SQL - SSE 协议"""
+    """流式生成 SQL - SSE 协议
+
+    需要内部令牌：同 /ai/generate，本接口同样消耗 LLM 额度。
+    """
     vs = get_vector_store_manager()
 
     async def event_stream():

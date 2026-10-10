@@ -34,8 +34,9 @@ mybatis-plus:
 # AI 引擎地址与内部调用凭证
 smart-sql:
   ai-engine-url: ${AI_ENGINE_URL:http://localhost:8000}
-  # 内部令牌：调用 AI 引擎 /ai/knowledge/sync 时通过 X-Internal-Token 携带，
-  # 必须与 AI 引擎侧的 INTERNAL_API_TOKEN 完全一致
+  # 内部令牌：调用 AI 引擎的 /ai/* 业务接口时通过 X-Internal-Token 携带，
+  # 必须与 AI 引擎侧的 INTERNAL_API_TOKEN 完全一致。
+  # ⚠️ 未配置或两端不一致时，问答功能会整体不可用（AI 引擎侧 fail-closed）
   internal-token: ${INTERNAL_API_TOKEN:}
   # CORS 允许的前端来源（逗号分隔），禁止使用 *
   allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
