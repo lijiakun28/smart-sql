@@ -58,3 +58,5 @@ openspec/
 *.doc
 LEARNING_LOG.md
 RESUME.md
+.docx_vendor/
+_recommendation_render/
