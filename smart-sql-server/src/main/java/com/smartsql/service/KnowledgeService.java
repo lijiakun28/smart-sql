@@ -10,6 +10,7 @@ import com.smartsql.mapper.KnowledgeTermMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -79,6 +80,18 @@ public class KnowledgeService {
         return ok;
     }
 
+    /**
+     * 生效/失效（唯一需要事务的知识库写操作）
+     *
+     * ⚠️ 这里加事务不是为了"写操作都该加"，而是因为本方法有**写后读**：
+     * 先 update 状态，再 selectById 取出完整记录推给向量库。
+     * 若不加事务，两次操作之间别处改了状态，就会把错误的版本同步进向量库
+     * （"AI 看到的知识"与"用户看到的状态"不一致）。
+     *
+     * 对比：createTerm/updateTerm/deleteTerm 都只有一条写语句，
+     * 单语句本身即原子，加事务只是噪音。
+     */
+    @Transactional(rollbackFor = Exception.class)
     public boolean changeTermStatus(Long id, String status) {
         LambdaUpdateWrapper<KnowledgeTerm> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(KnowledgeTerm::getId, id)
@@ -144,6 +157,8 @@ public class KnowledgeService {
         return ok;
     }
 
+    /** 生效/失效（术语库同名方法的理由同样适用：写后读必须一致） */
+    @Transactional(rollbackFor = Exception.class)
     public boolean changeCaliberStatus(Long id, String status) {
         LambdaUpdateWrapper<KnowledgeCaliber> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(KnowledgeCaliber::getId, id)

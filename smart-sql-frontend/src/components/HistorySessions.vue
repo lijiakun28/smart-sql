@@ -115,7 +115,7 @@ const handleRename = async (session) => {
       ElMessage.success('已保存')
       loadSessions()
     }
-  } catch { /* 用户取消 */ }
+  } catch { /* 用户取消，或接口失败（后者提示由 request 拦截器给出） */ }
 }
 
 /** 删除 */
@@ -135,7 +135,7 @@ const handleDelete = async (session) => {
       emit('close')
     }
     loadSessions()
-  } catch { /* 用户取消 */ }
+  } catch { /* 用户取消，或接口失败（后者提示由 request 拦截器给出） */ }
 }
 
 onMounted(loadSessions)

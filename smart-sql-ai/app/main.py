@@ -6,20 +6,25 @@ import os
 import time
 import json
 import asyncio
+import logging
+import secrets
 
 # ⚠️ 必须在导入任何 HuggingFace 相关库之前设置镜像地址
 # （huggingface_hub 在首次导入时缓存 ENDPOINT，之后修改无效）
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+
+logger = logging.getLogger("smart_sql.ai")
 
 from app.config import settings
 from app.models.schemas import ChatRequest, KnowledgeSyncRequest, HealthResponse
 from app.chains.nl_to_sql import build_sql_generation_chain
 from app.chains.rag_chain import build_rag_chain
 from app.rag.vector_store import VectorStoreManager
+from app.rag.doc_builder import build_doc_text, build_knowledge_id
 
 app = FastAPI(
     title="智能SQL AI Engine",
@@ -28,13 +33,33 @@ app = FastAPI(
 )
 
 # 跨域配置
+# ⚠️ 原来是 allow_origins=["*"] 叠加 allow_credentials=True ——
+# 浏览器规范下这是非法组合（凭据请求会被拒），且等于对所有源开放。
+# 本服务实际只被 Java 中间层服务端调用，浏览器不直连，白名单收窄到前端来源即可。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Internal-Token"],
 )
+
+
+async def verify_internal_token(x_internal_token: str = Header(default="")):
+    """校验内部调用令牌，仅用于 /ai/knowledge/sync 这类高破坏性接口。
+
+    ⚠️ 未配置 INTERNAL_API_TOKEN 时一律拒绝（fail-closed）：
+    "忘了配"不能等价于"没有防护"。
+    比较用 secrets.compare_digest，避免逐字符比较带来的时序侧信道。
+    """
+    expected = settings.INTERNAL_API_TOKEN
+    if not expected:
+        logger.error("INTERNAL_API_TOKEN 未配置，拒绝知识库同步请求")
+        raise HTTPException(status_code=503, detail="服务未配置内部令牌，同步接口不可用")
+    if not secrets.compare_digest(x_internal_token, expected):
+        logger.warning("知识库同步请求内部令牌校验失败")
+        raise HTTPException(status_code=401, detail="未授权")
+
 
 # 全局：向量存储管理器（懒加载）
 vector_store_manager: VectorStoreManager = None
@@ -87,7 +112,10 @@ async def generate_sql(request: ChatRequest):
 
     result = await chain.ainvoke({
         "question": request.question,
-        "context": json.dumps(request.context) if request.context else "无"
+        # ⚠️ 必须传结构化 context 本身，不能 json.dumps。
+        # format_context 要求 dict/list 输入，收到字符串会直接返回"无"，
+        # 用户选中的上下文被**静默丢弃**（流式端点传的是 request.context，两端曾不一致）。
+        "context": request.context
     })
 
     return {"answer": result, "sources": knowledge_texts}
@@ -151,8 +179,11 @@ async def generate_sql_stream(request: ChatRequest):
             yield f"data: {json.dumps({'type': 'thinking', 'content': f'✅ 已思考 {elapsed}秒'}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'thinking': '\n'.join(thinking_parts), 'elapsed': elapsed}, ensure_ascii=False)}\n\n"
 
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
+        except Exception:
+            # 不回吐 str(e)：内部异常可能含文件路径、连接串等信息。
+            # 真实异常写服务端日志，对外只给通用文案。
+            logger.exception("流式生成失败")
+            yield f"data: {json.dumps({'type': 'error', 'content': 'AI 引擎处理失败，请稍后重试'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         event_stream(),
@@ -168,9 +199,9 @@ async def generate_sql_stream(request: ChatRequest):
 # ────────────────────────────────
 #  知识库同步
 # ────────────────────────────────
-@app.post("/ai/knowledge/sync")
+@app.post("/ai/knowledge/sync", dependencies=[Depends(verify_internal_token)])
 async def sync_knowledge(request: KnowledgeSyncRequest):
-    """同步知识库条目到向量存储"""
+    """同步知识库条目到向量存储（仅限携带内部令牌的 Java 中间层调用）"""
     vs = get_vector_store_manager()
 
     if request.action == "delete":
@@ -185,21 +216,17 @@ async def sync_knowledge(request: KnowledgeSyncRequest):
     ids = []
 
     for item in request.items:
-        # 构建检索文本：标题重复加权五次（与 sync_knowledge.py 保持一致，防长文档稀释标题语义）
-        doc_text = f"{item.name}\n{item.name}\n{item.name}\n{item.name}\n{item.name}"
-        if item.description:
-            doc_text += f"\n描述：{item.description}"
-        if item.sql_logic:
-            doc_text += f"\nSQL：{item.sql_logic}"
-
-        texts.append(doc_text)
+        # ⚠️ doc_text 与 doc_id 必须走公共构造函数：
+        # 这里是实时同步路径，与 scripts/sync_knowledge.py 的全量对账路径共用同一份实现，
+        # 否则两条路径会写出不同结构的文档，导致向量漂移
+        texts.append(build_doc_text(item.name, item.description, item.sql_logic))
         metadatas.append({
             "id": item.id,
             "name": item.name,
             "category": item.category,
             "description": item.description or ""
         })
-        ids.append(f"{item.category}_{item.id}")
+        ids.append(build_knowledge_id(item.category, item.id))
 
     await vs.upsert(texts, metadatas, ids)
     return {"status": "synced", "count": len(texts)}
@@ -207,4 +234,6 @@ async def sync_knowledge(request: KnowledgeSyncRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True)
+    # 模块全限定名必须是 app.main：从项目根 `python -m app.main` 调用时，
+    # 裸 "main:app" 找不到模块（只有 cd 进 app/ 才碰巧可用）
+    uvicorn.run("app.main:app", host=settings.SERVER_HOST, port=settings.SERVER_PORT, reload=True)

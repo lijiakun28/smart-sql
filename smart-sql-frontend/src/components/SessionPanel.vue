@@ -94,7 +94,7 @@ const handleRename = async (session) => {
       ElMessage.success('已保存')
       sessionStore.loadSessions()
     }
-  } catch { /* 用户取消 */ }
+  } catch { /* 用户取消，或接口失败（后者提示由 request 拦截器给出） */ }
 }
 
 /** 删除 */
@@ -108,7 +108,7 @@ const handleDelete = async (session) => {
     await deleteSession(session.id)
     ElMessage.success('已删除')
     sessionStore.loadSessions()
-  } catch { /* 用户取消 */ }
+  } catch { /* 用户取消，或接口失败（后者提示由 request 拦截器给出） */ }
 }
 </script>
 

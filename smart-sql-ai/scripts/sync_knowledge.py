@@ -22,6 +22,7 @@ import pymysql
 from dotenv import load_dotenv
 from app.config import settings
 from app.rag.vector_store import VectorStoreManager
+from app.rag.doc_builder import build_doc_text, build_knowledge_id
 
 # 加载 .env（含 MYSQL_PASSWORD，该文件已被 .gitignore 排除，不会进版本库）
 load_dotenv()
@@ -97,23 +98,16 @@ def sync_to_chroma(items):
 
     texts, metadatas, ids = [], [], []
     for item in items:
-        # 构建检索文档：标题重复加权（避免长文档稀释标题语义）
-        # 口径条目含 SQL 代码和关联维表说明时文档较长，标题语义会被平均稀释，
-        # 重复标题五次提升标题匹配度（演示验证：3次时更新描述后的长口径仍跌出Top5）
-        doc_text = f"{item['name']}\n{item['name']}\n{item['name']}\n{item['name']}\n{item['name']}"
-        if item["description"]:
-            doc_text += f"\n描述：{item['description']}"
-        if item["sql_logic"]:
-            doc_text += f"\nSQL：{item['sql_logic']}"
-
-        texts.append(doc_text)
+        # ⚠️ 与 app/main.py 的实时同步路径共用同一份构造实现（app/rag/doc_builder.py）：
+        # 两条路径写出不同结构的文档会导致向量漂移，检索得分随机变化且极难排查
+        texts.append(build_doc_text(item["name"], item["description"], item["sql_logic"]))
         metadatas.append({
             "id": item["id"],
             "name": item["name"],
             "category": item["category"],
             "description": item["description"],
         })
-        ids.append(f"{item['category']}_{item['id']}")
+        ids.append(build_knowledge_id(item["category"], item["id"]))
 
     import asyncio
     asyncio.run(vs.upsert(texts, metadatas, ids))

@@ -76,6 +76,20 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /** 回填服务端生成的 messageId（流式结束后由后端 saved 事件送达） */
+  function setMessageId(index, id) {
+    if (messages.value[index]) {
+      messages.value[index].id = id
+    }
+  }
+
+  /** 设置某条消息的反馈状态（like / dislike / null） */
+  function setFeedback(index, feedback) {
+    if (messages.value[index]) {
+      messages.value[index].feedback = feedback
+    }
+  }
+
   /** 完成流式 */
   function finishStreaming(index) {
     if (messages.value[index]) {
@@ -115,6 +129,8 @@ export const useChatStore = defineStore('chat', () => {
     appendContent,
     appendThinking,
     appendKnowledge,
+    setMessageId,
+    setFeedback,
     finishStreaming,
     setStreaming,
     stopStreaming,

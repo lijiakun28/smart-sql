@@ -62,29 +62,44 @@
           </div>
         </el-dialog>
 
-        <!-- SQL 代码（带高亮） -->
-        <div class="sql-block" v-if="extractSql(message.content)">
+        <!-- SQL 代码（带高亮）—— 支持多个代码块，逐个渲染、逐个复制 -->
+        <div v-for="(block, i) in sqlBlocks" :key="i" class="sql-block">
           <div class="sql-header">
-            <span>📝 SQL</span>
-            <el-button size="small" text @click="copySql">
+            <span>📝 SQL{{ sqlBlocks.length > 1 ? ' ' + (i + 1) : '' }}</span>
+            <el-button size="small" text @click="copySql(block.code)">
               <el-icon><CopyDocument /></el-icon> 复制
             </el-button>
           </div>
-          <pre><code v-html="highlightedSql"></code></pre>
+          <pre><code v-html="block.html"></code></pre>
         </div>
 
         <!-- 普通文本：v-text 渲染，杜绝 XSS（修复） -->
-        <div class="text-content" v-text="message.content ? stripSqlBlock(message.content) : ''"></div>
+        <div class="text-content" v-text="message.content ? stripSqlBlocks(message.content) : ''"></div>
 
         <!-- 流式加载指示 -->
         <span v-if="message.isStreaming" class="streaming-cursor">▊</span>
 
         <!-- 操作按钮（用户反馈：图标纯白与背景融合——加可见颜色和背景） -->
         <div v-if="!message.isStreaming && message.role === 'assistant'" class="action-buttons">
-          <el-button size="small" class="feedback-btn" @click="$emit('feedback', index, 'like')">
+          <!-- 已评价的高亮；被中途停止的回答没有落库 id，无法提交反馈，故禁用 -->
+          <el-button
+            size="small"
+            class="feedback-btn"
+            :class="{ active: message.feedback === 'like' }"
+            :disabled="!message.id"
+            :title="message.id ? '有用' : '该回答未完整生成，暂不支持评价'"
+            @click="$emit('feedback', index, 'like')"
+          >
             <el-icon><ThumbUp /></el-icon> 有用
           </el-button>
-          <el-button size="small" class="feedback-btn" @click="$emit('feedback', index, 'dislike')">
+          <el-button
+            size="small"
+            class="feedback-btn"
+            :class="{ active: message.feedback === 'dislike' }"
+            :disabled="!message.id"
+            :title="message.id ? '没用' : '该回答未完整生成，暂不支持评价'"
+            @click="$emit('feedback', index, 'dislike')"
+          >
             <el-icon><ThumbDown /></el-icon> 没用
           </el-button>
           <!-- 重新回答（针对回答过的问题，再次进行回答） -->
@@ -103,6 +118,7 @@ import hljs from 'highlight.js/lib/core'
 import sql from 'highlight.js/lib/languages/sql'
 // 用户反馈：github.css 是浅色主题（黑字），SQL 块是深色背景 → 换深色主题
 import 'highlight.js/styles/github-dark.css'
+import { extractSqlBlocks, stripSqlBlocks } from '@/utils/sqlBlock'
 
 hljs.registerLanguage('sql', sql)
 
@@ -134,39 +150,20 @@ const commandLabel = (type) => ({
 }[type] || type)
 
 /**
- * SQL 代码块正则（修复：忽略大小写 + 允许空格）
- * ⚠️ 提取与删除必须用不同标志：
- *   - match()[1] 取捕获组需要【无 g 标志】（带 g 时 match 只返回完整匹配数组）
- *   - replace 删除全部代码块需要【g 标志】
- * 浏览器实测发现：共用带 g 的正则导致 match[1] === undefined，SQL 永不渲染
+ * 全部 SQL 代码块（原文 + 高亮后的 HTML），模板逐个渲染。
+ * 解析逻辑抽到 @/utils/sqlBlock，配套测试在 tests/sqlBlock.test.js
  */
-const SQL_BLOCK_EXTRACT = /```\s*sql\s*([\s\S]*?)```/i
-const SQL_BLOCK_REMOVE_ALL = /```\s*sql\s*[\s\S]*?```/gi
+const sqlBlocks = computed(() =>
+  extractSqlBlocks(props.message.content).map((code) => ({
+    code,
+    html: hljs.highlight(code, { language: 'sql' }).value
+  }))
+)
 
-/** 提取 SQL 代码块 */
-const extractSql = (content) => {
-  if (!content) return ''
-  const match = content.match(SQL_BLOCK_EXTRACT)
-  return match ? match[1] : ''
-}
-
-/** 去掉 SQL 代码块，返回纯文本 */
-const stripSqlBlock = (content) => {
-  return (content || '').replace(SQL_BLOCK_REMOVE_ALL, '').trim()
-}
-
-/** SQL 高亮 */
-const highlightedSql = computed(() => {
-  const sqlCode = extractSql(props.message.content)
-  if (!sqlCode) return ''
-  return hljs.highlight(sqlCode, { language: 'sql' }).value
-})
-
-/** 复制 SQL */
-const copySql = () => {
-  const sql = extractSql(props.message.content)
-  if (sql) {
-    navigator.clipboard.writeText(sql)
+/** 复制指定 SQL 块 */
+const copySql = (code) => {
+  if (code) {
+    navigator.clipboard.writeText(code)
   }
 }
 </script>
@@ -356,6 +353,13 @@ const copySql = () => {
     &:hover {
       color: #409eff;
       border-color: #409eff;
+      .el-icon { color: #409eff; }
+    }
+    /* 已点赞/已点踩（需求 3.1.6.9：点击后颜色变为深色） */
+    &.active {
+      color: #409eff;
+      border-color: #409eff;
+      background: #ecf5ff;
       .el-icon { color: #409eff; }
     }
   }

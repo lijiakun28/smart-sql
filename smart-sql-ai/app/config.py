@@ -29,5 +29,20 @@ class Settings:
     # Java 中间层地址（用于回调同步知识库）
     JAVA_SERVER_URL = os.getenv("JAVA_SERVER_URL", "http://localhost:8080")
 
+    # 内部调用令牌：/ai/knowledge/sync 只允许 Java 中间层调用
+    # （该接口可覆盖甚至清空整个向量库，不能裸奔）
+    # 留空表示未配置 —— 此时同步接口一律拒绝（fail-closed），
+    # 避免"忘了配"被当成"没有防护"
+    INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "")
+
+    # CORS 白名单（逗号分隔）。
+    # ⚠️ 不能用 "*"：与 allow_credentials=True 叠加在浏览器规范下是非法组合，
+    # 且等于对所有源开放
+    ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+        if origin.strip()
+    ]
+
 
 settings = Settings()

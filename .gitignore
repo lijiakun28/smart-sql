@@ -51,6 +51,10 @@ build/
 chroma_db/
 chroma_data/
 
+# 本地启动脚本（含本机绝对路径 D:\智能SQL\...，不入库）
+# 凭据由脚本运行时从 smart-sql-ai/.env 读取，脚本本身不含密码
+start-all.bat
+
 # Claude 工作目录
 .claude/
 openspec/

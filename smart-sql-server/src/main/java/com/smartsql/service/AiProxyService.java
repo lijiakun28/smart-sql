@@ -2,6 +2,7 @@ package com.smartsql.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelOption;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -18,6 +19,7 @@ import java.util.Map;
  * AI 引擎代理服务
  * 调用 Python AI 引擎的 REST API
  */
+@Slf4j
 @Service
 public class AiProxyService {
 
@@ -25,7 +27,8 @@ public class AiProxyService {
     private final ObjectMapper objectMapper;
 
     public AiProxyService(ObjectMapper objectMapper,
-                          @Value("${smart-sql.ai-engine-url}") String aiEngineUrl) {
+                          @Value("${smart-sql.ai-engine-url}") String aiEngineUrl,
+                          @Value("${smart-sql.internal-token:}") String internalToken) {
         // ⚠️ aiEngineUrl 必须用构造器参数注入：
         // @Value 字段注入发生在构造器执行之后，在构造器里读字段拿到的是 null，
         // 会导致 WebClient 无 baseUrl、请求打到 localhost:80（验证时踩过的坑）
@@ -37,10 +40,20 @@ public class AiProxyService {
                 // 响应超时 120 秒：SSE 流式生成 SQL 需要较长时间，不能设太短
                 .responseTimeout(Duration.ofSeconds(120));
 
-        this.webClient = WebClient.builder()
+        WebClient.Builder builder = WebClient.builder()
                 .baseUrl(aiEngineUrl)
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
-                .build();
+                .clientConnector(new ReactorClientHttpConnector(httpClient));
+
+        // 统一附带内部令牌：AI 引擎侧 /ai/knowledge/sync 会校验 X-Internal-Token。
+        // 用 defaultHeader 一次配好，避免每个调用点各写一遍。
+        if (internalToken != null && !internalToken.isBlank()) {
+            builder.defaultHeader("X-Internal-Token", internalToken);
+        } else {
+            log.warn("INTERNAL_API_TOKEN 未配置，知识库同步会被 AI 引擎拒绝"
+                    + "（需 Java 与 AI 引擎两侧配置同名环境变量）");
+        }
+
+        this.webClient = builder.build();
         this.objectMapper = objectMapper;
     }
 

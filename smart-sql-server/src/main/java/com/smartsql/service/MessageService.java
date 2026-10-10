@@ -1,6 +1,7 @@
 package com.smartsql.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.smartsql.entity.Message;
 import com.smartsql.mapper.MessageMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,12 +55,17 @@ public class MessageService {
         return messageMapper.updateById(message) > 0;
     }
 
-    /** 更新反馈 */
+    /**
+     * 更新反馈（feedback 传 null 表示取消反馈）
+     *
+     * ⚠️ 必须用 UpdateWrapper 而不是 updateById：updateById 会忽略实体里的 null 字段，
+     * 传 null 根本不会写进 SQL，"取消点赞"就变成静默无效。
+     */
     public boolean updateFeedback(Long id, String feedback) {
-        Message message = new Message();
-        message.setId(id);
-        message.setFeedback(feedback);
-        return messageMapper.updateById(message) > 0;
+        LambdaUpdateWrapper<Message> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Message::getId, id)
+               .set(Message::getFeedback, feedback);
+        return messageMapper.update(null, wrapper) > 0;
     }
 
     /** 统计会话消息数（修复题6：以消息数判断是否首条消息，而非会话名） */

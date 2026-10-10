@@ -91,11 +91,20 @@ def format_context(context) -> str:
     - 口径：- 口径【名称】的SQL：xxx
 
     分层原则：API 边界保持结构化（可扩展），Prompt 构建层负责格式化（可定制）。
+
+    容错：调用方可能传 {items: [...]}（前端实际形状）、裸数组，或 None。
+    之前对非 dict 输入直接返回"无"，会让用户选中的上下文**无声消失**——
+    既没注入 Prompt，也没有任何日志或报错。
     """
-    if not context or not isinstance(context, dict):
+    if not context:
+        return "无"
+    if isinstance(context, list):
+        items = context
+    elif isinstance(context, dict):
+        items = context.get("items", [])
+    else:
         return "无"
 
-    items = context.get("items", [])
     if not items:
         return "无"
 

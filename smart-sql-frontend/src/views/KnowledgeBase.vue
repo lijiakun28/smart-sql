@@ -255,21 +255,31 @@ const resetCaliberForm = () => {
 // ─── 术语库 CRUD ───
 const loadTerms = async () => {
   termLoading.value = true
-  const res = await listTerms({ keyword: termKeyword.value, page: termPage.value })
-  termList.value = res.data?.records || []
-  termTotal.value = res.data?.total || 0
-  termLoading.value = false
+  try {
+    const res = await listTerms({ keyword: termKeyword.value, page: termPage.value })
+    termList.value = res.data?.records || []
+    termTotal.value = res.data?.total || 0
+  } catch {
+    // 错误提示由 request 拦截器统一给出
+  } finally {
+    // 必须在 finally 复位：请求抛错时若不复位，表格会一直转圈卡死
+    termLoading.value = false
+  }
 }
 
 const saveTerm = async () => {
-  // 修复：双层防线
-  await termFormRef.value.validate()     // 第1层：前端校验（体验层），失败抛出
-  const res = editingTerm.value
-    ? await updateTerm(editingTerm.value.id, termForm)
-    : await createTerm(termForm)
-  if (res.code !== 200) {                // 第2层：响应码检查（真实性层）
-    ElMessage.error(res.message || '保存失败')
-    return
+  try {
+    // 第1层：前端表单校验（体验层），失败抛出
+    await termFormRef.value.validate()
+    // 第2层：响应码检查（真实性层）已上移到 request 拦截器 ——
+    // code !== 200 会 reject 并在那里统一提示，这里只走成功分支
+    if (editingTerm.value) {
+      await updateTerm(editingTerm.value.id, termForm)
+    } else {
+      await createTerm(termForm)
+    }
+  } catch {
+    return   // 校验失败 / 接口失败：提示已分别由 Element 表单与 request 拦截器给出
   }
   ElMessage.success('保存成功')
   showTermDialog.value = false
@@ -284,15 +294,23 @@ const editTerm = (row) => {
 
 const handleDeleteTerm = async (row) => {
   if (row.status === 'active') { ElMessage.warning('生效的知识不允许被删除，请先失效！'); return }
-  await ElMessageBox.confirm('删除当前知识，将会影响智能SQL回答问题的准确性，确认删除吗？', '确认删除', { type: 'warning' })
-  await deleteTerm(row.id)
+  try {
+    await ElMessageBox.confirm('删除当前知识，将会影响智能SQL回答问题的准确性，确认删除吗？', '确认删除', { type: 'warning' })
+    await deleteTerm(row.id)
+  } catch {
+    return   // 用户取消，或接口失败（后者提示由 request 拦截器给出）
+  }
   ElMessage.success('已删除')
   loadTerms()
 }
 
 /** 状态变更（实测修复：原模板直接调 API 函数，成功后不刷新列表） */
 const handleTermStatusChange = async (id, status) => {
-  await changeTermStatus(id, status)
+  try {
+    await changeTermStatus(id, status)
+  } catch {
+    return
+  }
   ElMessage.success(status === 'active' ? '已生效' : '已失效')
   loadTerms()
 }
@@ -300,21 +318,29 @@ const handleTermStatusChange = async (id, status) => {
 // ─── 口径库 CRUD ───
 const loadCalibers = async () => {
   caliberLoading.value = true
-  const res = await listCalibers({ keyword: caliberKeyword.value, page: caliberPage.value })
-  caliberList.value = res.data?.records || []
-  caliberTotal.value = res.data?.total || 0
-  caliberLoading.value = false
+  try {
+    const res = await listCalibers({ keyword: caliberKeyword.value, page: caliberPage.value })
+    caliberList.value = res.data?.records || []
+    caliberTotal.value = res.data?.total || 0
+  } catch {
+    // 错误提示由 request 拦截器统一给出
+  } finally {
+    // 同 loadTerms：必须在 finally 复位，否则表格一直转圈卡死
+    caliberLoading.value = false
+  }
 }
 
 const saveCaliber = async () => {
-  // 修复：双层防线（同术语）
-  await caliberFormRef.value.validate()
-  const res = editingCaliber.value
-    ? await updateCaliber(editingCaliber.value.id, caliberForm)
-    : await createCaliber(caliberForm)
-  if (res.code !== 200) {
-    ElMessage.error(res.message || '保存失败')
-    return
+  try {
+    // 第1层：前端表单校验；第2层响应码检查已上移到 request 拦截器（同术语库）
+    await caliberFormRef.value.validate()
+    if (editingCaliber.value) {
+      await updateCaliber(editingCaliber.value.id, caliberForm)
+    } else {
+      await createCaliber(caliberForm)
+    }
+  } catch {
+    return   // 提示已分别由 Element 表单与 request 拦截器给出
   }
   ElMessage.success('保存成功')
   showCaliberDialog.value = false
@@ -329,15 +355,23 @@ const editCaliber = (row) => {
 
 const handleDeleteCaliber = async (row) => {
   if (row.status === 'active') { ElMessage.warning('生效的知识不允许被删除，请先失效！'); return }
-  await ElMessageBox.confirm('删除当前知识，将会影响智能SQL回答问题的准确性，确认删除吗？', '确认删除', { type: 'warning' })
-  await deleteCaliber(row.id)
+  try {
+    await ElMessageBox.confirm('删除当前知识，将会影响智能SQL回答问题的准确性，确认删除吗？', '确认删除', { type: 'warning' })
+    await deleteCaliber(row.id)
+  } catch {
+    return   // 用户取消，或接口失败（后者提示由 request 拦截器给出）
+  }
   ElMessage.success('已删除')
   loadCalibers()
 }
 
 /** 状态变更（实测修复：同术语库问题） */
 const handleCaliberStatusChange = async (id, status) => {
-  await changeCaliberStatus(id, status)
+  try {
+    await changeCaliberStatus(id, status)
+  } catch {
+    return
+  }
   ElMessage.success(status === 'active' ? '已生效' : '已失效')
   loadCalibers()
 }

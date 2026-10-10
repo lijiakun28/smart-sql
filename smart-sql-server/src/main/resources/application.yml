@@ -31,9 +31,18 @@ mybatis-plus:
       #   knowledge_*.status = 'new'/'active'/'inactive'（业务状态，不是删除标记）
       # 全局配置会导致知识库所有查询被自动加 WHERE status=1，永远查不到数据
 
-# AI 引擎地址
+# AI 引擎地址与内部调用凭证
 smart-sql:
   ai-engine-url: ${AI_ENGINE_URL:http://localhost:8000}
+  # 内部令牌：调用 AI 引擎 /ai/knowledge/sync 时通过 X-Internal-Token 携带，
+  # 必须与 AI 引擎侧的 INTERNAL_API_TOKEN 完全一致
+  internal-token: ${INTERNAL_API_TOKEN:}
+  # CORS 允许的前端来源（逗号分隔），禁止使用 *
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  # 会话保留天数（需求 3.1.5.4：仅保留 7 天）——改这里也要同步前端 HistorySessions 的文案
+  session-retention-days: ${SESSION_RETENTION_DAYS:7}
+  # 清理任务执行时间：默认每天 03:30
+  session-cleanup-cron: ${SESSION_CLEANUP_CRON:0 30 3 * * ?}
 
 # 日志
 logging:

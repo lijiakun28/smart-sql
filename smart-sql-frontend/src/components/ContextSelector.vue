@@ -101,16 +101,20 @@ const codeSearched = ref(false)
 
 const searchTable = async () => {
   if (!tableKeyword.value.trim()) return
-  const res = await searchKnowledge(tableKeyword.value)
-  tableResults.value = (res.data || []).filter(i => i.type === 'table' || i.type === 'term')
-  tableSearched.value = true
+  try {
+    const res = await searchKnowledge(tableKeyword.value)
+    tableResults.value = (res.data || []).filter(i => i.type === 'table' || i.type === 'term')
+    tableSearched.value = true
+  } catch { /* 错误提示由 request 拦截器统一给出 */ }
 }
 
 const searchCode = async () => {
   if (!codeKeyword.value.trim()) return
-  const res = await searchKnowledge(codeKeyword.value)
-  codeResults.value = (res.data || []).filter(i => i.type === 'code' || i.type === 'caliber')
-  codeSearched.value = true
+  try {
+    const res = await searchKnowledge(codeKeyword.value)
+    codeResults.value = (res.data || []).filter(i => i.type === 'code' || i.type === 'caliber')
+    codeSearched.value = true
+  } catch { /* 错误提示由 request 拦截器统一给出 */ }
 }
 </script>
 

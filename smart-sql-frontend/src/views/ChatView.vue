@@ -130,7 +130,7 @@ import { ref, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useChatStore } from '@/store/chat'
 import { useSessionStore } from '@/store/session'
-import { chatStream } from '@/api/chat'
+import { chatStream, updateFeedback } from '@/api/chat'
 import { listMessages } from '@/api/session'
 import SessionPanel from '@/components/SessionPanel.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
@@ -170,8 +170,11 @@ const handleSend = async (questionOverride) => {
 
   // 如果没有会话，自动创建
   if (!chatStore.currentSessionId) {
-    await sessionStore.create()
-    chatStore.setSession(sessionStore.currentId)
+    const session = await sessionStore.create()
+    // 创建失败则中止本次发送：此处尚未进入流式状态，直接返回无需清理。
+    // 错误提示由 request 拦截器统一给出
+    if (!session) return
+    chatStore.setSession(session.id)
   }
 
   if (!override) {
@@ -212,6 +215,9 @@ const handleSend = async (questionOverride) => {
         chatStore.appendKnowledge(aiMsgIndex, data)
       } else if (data.type === 'done') {
         chatStore.finishStreaming(aiMsgIndex)
+      } else if (data.type === 'saved') {
+        // 后端落库后回传的自增 id：没有它就调不了 /api/messages/{id}/feedback
+        chatStore.setMessageId(aiMsgIndex, data.messageId)
       } else if (data.type === 'error') {
         chatStore.appendContent(aiMsgIndex, `\n\n❌ 错误：${data.content}`)
         chatStore.finishStreaming(aiMsgIndex)
@@ -258,6 +264,7 @@ const handleSelectSession = async (sessionId) => {
 /** 创建会话 */
 const handleCreateSession = async () => {
   const session = await sessionStore.create()
+  if (!session) return   // 创建失败：提示由 request 拦截器给出
   chatStore.setSession(session.id)
   chatStore.setMessages([])
   inputText.value = ''
@@ -280,9 +287,28 @@ const handleAddContext = (item) => {
   }
 }
 
-/** 反馈 */
-const handleFeedback = (index, type) => {
-  ElMessage.success(type === 'like' ? '感谢您的点赞！' : '感谢您的反馈，我们会持续改进！')
+/**
+ * 反馈（点赞/点踩）
+ *
+ * 修复：此前只弹了一个 toast，从不调用后端——接口 /api/messages/{id}/feedback 从未被触达过。
+ * 现在真正落库，并支持再次点击同一项取消（需求 3.1.6.9）。
+ * 采用乐观更新：先改 UI，请求失败再回滚（错误提示由 request 拦截器统一给出）。
+ */
+const handleFeedback = async (index, type) => {
+  const msg = chatStore.messages[index]
+  if (!msg || !msg.id) return
+  const previous = msg.feedback || null
+  const next = previous === type ? null : type
+
+  chatStore.setFeedback(index, next)
+  try {
+    await updateFeedback(msg.id, next || '')
+    ElMessage.success(next === 'like' ? '感谢您的点赞！'
+      : next === 'dislike' ? '感谢您的反馈，我们会持续改进！'
+      : '已取消评价')
+  } catch {
+    chatStore.setFeedback(index, previous)   // 回滚
+  }
 }
 
 /** 重新回答（修复：复用原问题直接发送，不重复落库、不覆盖输入框）

@@ -11,18 +11,27 @@ export const useSessionStore = defineStore('session', () => {
 
   /** 加载会话列表 */
   async function loadSessions(keyword) {
-    const res = await listSessions(keyword)
-    sessions.value = res.data || []
+    try {
+      const res = await listSessions(keyword)
+      sessions.value = res.data || []
+    } catch {
+      // 错误提示由 request 拦截器统一给出；失败时保持列表原状
+    }
     return sessions.value
   }
 
-  /** 创建新会话 */
+  /** 创建新会话；失败返回 null（错误提示由 request 拦截器给出） */
   async function create(name) {
-    const res = await apiCreate(name)
-    const session = res.data
-    sessions.value.unshift(session)
-    currentId.value = session.id
-    return session
+    try {
+      const res = await apiCreate(name)
+      const session = res.data
+      if (!session) return null
+      sessions.value.unshift(session)
+      currentId.value = session.id
+      return session
+    } catch {
+      return null
+    }
   }
 
   /** 切换会话 */

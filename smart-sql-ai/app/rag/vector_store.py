@@ -12,6 +12,19 @@ from app.config import settings
 from app.rag.embedding import get_embedding_model
 
 
+def distance_to_score(distance: Optional[float]) -> float:
+    """cosine 距离 → 相似度分数（0~1）
+
+    ⚠️ 必须用 `is not None` 判断，不能用真值判断。
+    距离恰为 0.0 表示两向量完全相同（完全匹配），是最高分；
+    而 `if distance` 会把 0.0 当成"缺列"，让最佳命中显示 0 分。
+    只有 None（Chroma 未返回 distances）才代表"未知"。
+    """
+    if distance is None:
+        return 0.0
+    return round(1 - distance, 4)
+
+
 class LangChainEmbeddingAdapter:
     """将 LangChain HuggingFaceEmbeddings 适配为 ChromaDB EmbeddingFunction 接口"""
 
@@ -125,7 +138,7 @@ class VectorStoreManager:
                     "category": metadata.get("category", ""),
                     "description": metadata.get("description", ""),
                     "content": document,
-                    "score": round(1 - distance, 4) if distance else 0,  # cosine -> similarity
+                    "score": distance_to_score(distance),  # cosine -> similarity
                 })
 
         # ── 第二路：表名点名召回（查询中明确提到的表强制进入上下文）──
