@@ -44,9 +44,10 @@ cd D:\智能SQL\smart-sql-ai
 .\.venv\Scripts\Activate.ps1
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-# 终端 2：Java 服务（将占位密码替换为本机 MySQL 密码）
+# 终端 2：Java 服务（两个环境变量都必须设置）
 cd D:\智能SQL\smart-sql-server
 $env:MYSQL_PASSWORD = 'YOUR_MYSQL_PASSWORD'
+$env:INTERNAL_API_TOKEN = '与 smart-sql-ai\.env 中同名变量一致的值'
 mvn spring-boot:run
 
 # 终端 3：前端
@@ -55,6 +56,10 @@ npm run dev
 ```
 
 打开 http://localhost:5173 。若只需要恢复前端页面，可在 `smart-sql-frontend` 目录运行第三段命令。
+
+> `INTERNAL_API_TOKEN` 用于 Java 中间层调用 AI 引擎时的鉴权，必须与 `smart-sql-ai\.env` 中的值完全一致。
+> 未设置或两端不一致时，**问答功能会整体不可用**（AI 引擎对未携带正确令牌的请求一律拒绝，
+> 这是刻意的 fail-closed 设计）。详见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) 的故障排查一节。
 
 ## 项目文档
 
