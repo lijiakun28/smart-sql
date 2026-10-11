@@ -62,5 +62,9 @@ openspec/
 *.doc
 LEARNING_LOG.md
 RESUME.md
+# 工程踩坑单坑详解与回归测试详解（含业务表名、统计口径等内部信息，仅本地保留）
+# 注意：PITFALLS.md 是主索引，仍入库；这里排除的是 PITFALL-<编号>-*.md 系列
+PITFALL-*.md
+回归-*.md
 .docx_vendor/
 _recommendation_render/
